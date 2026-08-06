@@ -1,0 +1,11 @@
+node_modules
+vendor
+npm-debug.log
+.git
+.gitignore
+.env
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+storage/logs/*
+public/build

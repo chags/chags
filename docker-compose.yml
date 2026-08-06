@@ -1,0 +1,62 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: chags-app
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+    depends_on:
+      - postgres
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:9000
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: chagsdb
+      DB_USERNAME: chags
+      DB_PASSWORD: chags
+    command: >
+      sh -c "composer install --no-interaction --prefer-dist &&
+      php artisan key:generate --force &&
+      php artisan migrate --force &&
+      php-fpm"
+    networks:
+      - chags
+
+  nginx:
+    image: nginx:alpine
+    container_name: chags-nginx
+    ports:
+      - "9000:80"
+    volumes:
+      - .:/var/www:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - chags
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: chags-postgres
+    environment:
+      POSTGRES_DB: chagsdb
+      POSTGRES_USER: chags
+      POSTGRES_PASSWORD: chags
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - chags
+
+networks:
+  chags:
+    driver: bridge
+
+volumes:
+  postgres_data:
