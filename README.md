@@ -1,16 +1,21 @@
-## Hi there 👋
+# Chags Technology
 
-<!--
-**chags/chags** is a ✨ _special_ ✨ repository because its `README.md` (this file) appears on your GitHub profile.
+Somos a Chags Technology, uma empresa de tecnologia especializada em serviços de TI terceirizados para empresas e governo.
 
-Here are some ideas to get you started:
+Nossa missão é oferecer soluções tecnológicas eficientes, seguras e escaláveis, com foco em produtividade, inovação e suporte contínuo para organizações que buscam transformar sua operação digital.
 
-- 🔭 I’m currently working on ...
-- 🌱 I’m currently learning ...
-- 👯 I’m looking to collaborate on ...
-- 🤔 I’m looking for help with ...
-- 💬 Ask me about ...
-- 📫 How to reach me: ...
-- 😄 Pronouns: ...
-- ⚡ Fun fact: ...
--->
+## O que fazemos
+
+- Serviços de TI terceirizados para empresas
+- Suporte e gestão de infraestrutura tecnológica
+- Soluções digitais e automação de processos
+- Atendimento especializado para órgãos públicos e organizações privadas
+
+## Nossa proposta
+
+A Chags Technology atua como parceiro estratégico, entregando tecnologia com responsabilidade, agilidade e excelência, contribuindo para o crescimento e a modernização dos negócios e da gestão pública.
+
+## Contato
+
+Entre em contato para conhecer nossos serviços e descobrir como podemos apoiar sua organização.
+
