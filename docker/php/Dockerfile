@@ -13,7 +13,8 @@ RUN apk add --no-cache \
     libxml2-dev \
     libpq-dev \
     icu-dev \
-    && docker-php-ext-configure gd --with-jpeg --with-webp --with-png \
+    freetype-dev \
+    && docker-php-ext-configure gd --with-freetype --with-jpeg --with-webp \
     && docker-php-ext-install pdo_pgsql gd zip intl \
     && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 

@@ -27,6 +27,15 @@ Estamos estruturando uma plataforma integrada para apoiar a operação da empres
 
 Essa estrutura permitirá integrar colaboradores, processos internos, comunicação corporativa e oportunidades de carreira em uma única experiência digital.
 
+## Ambiente Docker
+
+Este projeto utiliza Docker como ambiente principal para desenvolvimento.
+
+- Use `docker compose up -d --build` para subir os containers.
+- Use `docker compose exec app php artisan migrate` para executar migrations.
+- Use `docker compose exec app php artisan ...` para rodar comandos do Laravel dentro do container.
+- O app fica disponível em `http://localhost:9000`.
+
 ## Contato
 
 Entre em contato para conhecer nossos serviços e descobrir como podemos apoiar sua organização.
