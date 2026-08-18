@@ -27,4 +27,5 @@ yarn-error.log
 /.nova
 /.vscode
 /.zed
+/.ftp-deploy-sync-state.json
 /.docs/

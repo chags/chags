@@ -1,0 +1,71 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: chags-app
+    working_dir: /var/www
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      APP_ENV: production
+      APP_DEBUG: "false"
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+    volumes:
+      - .:/var/www
+    depends_on:
+      postgres:
+        condition: service_healthy
+    command: >
+      sh -c "composer install --no-dev --no-interaction --prefer-dist --optimize-autoloader &&
+      chown -R www-data:www-data storage bootstrap/cache &&
+      find storage bootstrap/cache -type d -exec chmod 775 {} + &&
+      find storage bootstrap/cache -type f -exec chmod 664 {} + &&
+      php artisan migrate --force &&
+      php-fpm"
+    networks:
+      - chags
+
+  nginx:
+    image: nginx:alpine
+    container_name: chags-nginx
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:${APP_HTTP_PORT:-9080}:80"
+    volumes:
+      - .:/var/www:ro
+      - ./docker/nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    networks:
+      - chags
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: chags-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${DB_DATABASE}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USERNAME} -d ${DB_DATABASE}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - chags
+
+networks:
+  chags:
+    name: chags
+
+volumes:
+  postgres_data:
+    name: chags_postgres_data

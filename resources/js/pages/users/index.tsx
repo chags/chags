@@ -281,7 +281,7 @@ export default function UsersIndex({
     return (
         <>
             <Head title="Usuários" />
-            <main className="mx-auto w-full max-w-7xl p-4 py-6 md:p-8">
+            <main className="app-page">
                 <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
                     <div>
                         <div className="mb-3 badge badge-outline badge-primary">

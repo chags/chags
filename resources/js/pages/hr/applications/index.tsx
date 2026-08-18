@@ -284,7 +284,7 @@ export default function ApplicationsIndex({
     return (
         <>
             <Head title="Candidaturas" />
-            <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 py-6 md:p-8">
+            <main className="app-page gap-6">
                 <section>
                     <p className="text-sm font-semibold text-primary">
                         Recursos Humanos

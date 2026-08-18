@@ -574,7 +574,7 @@ export default function SystemSettings({
     return (
         <>
             <Head title="Configurações do sistema" />
-            <main className="mx-auto w-full max-w-7xl p-4 py-6 md:p-8">
+            <main className="app-page">
                 <div className="mb-6">
                     <div className="mb-3 badge badge-outline badge-primary">
                         Administração
@@ -614,7 +614,7 @@ export default function SystemSettings({
                 </div>
 
                 {tab === 'company' && (
-                    <section className="card border border-base-300 bg-base-100 shadow-sm">
+                    <section className="card flex-1 border border-base-300 bg-base-100 shadow-sm">
                         <div className="card-body">
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
@@ -908,7 +908,7 @@ export default function SystemSettings({
                 )}
 
                 {tab === 'mail' && (
-                    <section className="card border border-base-300 bg-base-100 shadow-sm">
+                    <section className="card flex-1 border border-base-300 bg-base-100 shadow-sm">
                         <form onSubmit={saveMail} className="card-body">
                             <h2 className="card-title">Servidor SMTP</h2>
                             <p className="text-sm text-base-content/60">
@@ -1027,7 +1027,7 @@ export default function SystemSettings({
                 )}
 
                 {tab === 'turnstile' && (
-                    <section className="card border border-base-300 bg-base-100 shadow-sm">
+                    <section className="card flex-1 border border-base-300 bg-base-100 shadow-sm">
                         <form onSubmit={saveTurnstile} className="card-body">
                             <h2 className="card-title">Cloudflare Turnstile</h2>
                             <p className="text-sm text-base-content/60">
@@ -1112,7 +1112,7 @@ export default function SystemSettings({
                 )}
 
                 {tab === 'ai' && (
-                    <section className="card border border-base-300 bg-base-100 shadow-sm">
+                    <section className="card flex-1 border border-base-300 bg-base-100 shadow-sm">
                         <div className="card-body">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
@@ -1328,7 +1328,7 @@ export default function SystemSettings({
                 )}
 
                 {tab === 'appearance' && (
-                    <section className="card border border-base-300 bg-base-100 shadow-sm">
+                    <section className="card flex-1 border border-base-300 bg-base-100 shadow-sm">
                         <div className="card-body">
                             <h2 className="card-title">Tema global</h2>
                             <p className="text-sm text-base-content/60">

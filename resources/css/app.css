@@ -82,3 +82,7 @@
         @apply bg-background text-foreground;
     }
 }
+
+@utility app-page {
+    @apply flex w-full flex-1 flex-col p-4 sm:p-5 lg:p-6;
+}

@@ -38,7 +38,7 @@ export default function Dashboard() {
         <>
             <Head title="Dashboard" />
 
-            <main className="mx-auto flex w-full max-w-7xl flex-1 flex-col gap-6 p-4 py-6 md:p-8">
+            <main className="app-page gap-6">
                 <section className="hero min-h-56 overflow-hidden rounded-box bg-primary text-primary-content shadow-lg">
                     <div className="hero-content w-full justify-between px-6 py-10 md:px-10">
                         <div className="max-w-2xl">
