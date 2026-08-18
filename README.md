@@ -83,6 +83,16 @@ comando e código do erro. Para usar outro PHP ou usuário do PHP-FPM:
 PHP_BIN=/caminho/do/php WEB_USER=www ./install.sh
 ```
 
+Se uma instalação iniciada anteriormente apresentar `Please provide a valid
+cache path`, recrie os diretórios de runtime antes de repetir o build:
+
+```bash
+mkdir -p storage/app/private storage/app/public storage/framework/cache/data storage/framework/sessions storage/framework/testing storage/framework/views storage/logs bootstrap/cache
+chown -R www:www storage bootstrap/cache
+find storage bootstrap/cache -type d -exec chmod 775 {} +
+find storage bootstrap/cache -type f -exec chmod 664 {} +
+```
+
 Após futuras atualizações por FTP, rode novamente Composer, o build e as
 migrations:
 

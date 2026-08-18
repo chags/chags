@@ -208,19 +208,7 @@ set_env VITE_APP_NAME "$APP_NAME_INPUT"
 chmod 600 "$ENV_FILE"
 cd "$PROJECT_DIR"
 
-CURRENT_STEP="Instalação das dependências PHP"
-"$PHP_BIN" "$COMPOSER_BIN" install \
-    --no-dev \
-    --no-interaction \
-    --prefer-dist \
-    --optimize-autoloader
-
-CURRENT_STEP="Build do frontend"
-rm -f public/hot
-npm ci
-PHP_BIN="$PHP_BIN" npm run build
-
-CURRENT_STEP="Preparação das permissões"
+CURRENT_STEP="Preparação dos diretórios e permissões"
 mkdir -p \
     storage/app/private \
     storage/app/public \
@@ -234,6 +222,18 @@ mkdir -p \
 chown -R "$WEB_USER:$WEB_USER" storage bootstrap/cache
 find storage bootstrap/cache -type d -exec chmod 775 {} +
 find storage bootstrap/cache -type f -exec chmod 664 {} +
+
+CURRENT_STEP="Instalação das dependências PHP"
+"$PHP_BIN" "$COMPOSER_BIN" install \
+    --no-dev \
+    --no-interaction \
+    --prefer-dist \
+    --optimize-autoloader
+
+CURRENT_STEP="Build do frontend"
+rm -f public/hot
+npm ci
+PHP_BIN="$PHP_BIN" npm run build
 
 CURRENT_STEP="Migrations do banco"
 "$PHP_BIN" artisan migrate --force
