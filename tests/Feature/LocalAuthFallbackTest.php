@@ -45,3 +45,21 @@ test('local hosts can authenticate with email and password', function () {
 
     $this->assertAuthenticatedAs($user);
 });
+
+test('production redirects login requests to WorkOS AuthKit', function () {
+    $originalEnvironment = app()->environment();
+    app()->detectEnvironment(fn () => 'production');
+
+    config([
+        'services.workos.client_id' => 'client_test',
+        'services.workos.secret' => 'sk_test',
+        'services.workos.redirect_url' => 'https://chags.com.br/authenticate',
+    ]);
+
+    try {
+        $this->get('/login')
+            ->assertRedirectContains('api.workos.com');
+    } finally {
+        app()->detectEnvironment(fn () => $originalEnvironment);
+    }
+});

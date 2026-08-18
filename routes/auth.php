@@ -9,7 +9,7 @@ use Laravel\WorkOS\Http\Requests\AuthKitAuthenticationRequest;
 use Laravel\WorkOS\Http\Requests\AuthKitLoginRequest;
 
 Route::middleware(['guest'])->group(function () {
-    Route::get('login', function (Request $request) {
+    Route::get('login', function (AuthKitLoginRequest $request) {
         $workosConfigured = app()->environment('production')
             && filled(config('services.workos.client_id'))
             && filled(config('services.workos.secret'));
@@ -20,7 +20,7 @@ Route::middleware(['guest'])->group(function () {
 
         abort_unless($workosConfigured, 503, 'WorkOS is not configured.');
 
-        return (new AuthKitLoginRequest($request))->redirect();
+        return $request->redirect();
     })->name('login');
 
     Route::post('login', function (Request $request) {
@@ -50,14 +50,14 @@ Route::middleware(['guest'])->group(function () {
         return redirect()->intended(route('dashboard'));
     });
 
-    Route::get('authenticate', function (Request $request) {
+    Route::get('authenticate', function (AuthKitAuthenticationRequest $request) {
         if (! app()->environment('production') || ! filled(config('services.workos.client_id')) || ! filled(config('services.workos.secret'))) {
             abort(404);
         }
 
         return tap(
             redirect()->intended(route('dashboard')),
-            fn () => (new AuthKitAuthenticationRequest($request))->authenticate(),
+            fn () => $request->authenticate(),
         );
     });
 });
