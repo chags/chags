@@ -218,7 +218,7 @@ CURRENT_STEP="Instalação das dependências PHP"
 CURRENT_STEP="Build do frontend"
 rm -f public/hot
 npm ci
-npm run build
+PHP_BIN="$PHP_BIN" npm run build
 
 CURRENT_STEP="Preparação das permissões"
 mkdir -p \

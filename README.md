@@ -90,7 +90,7 @@ migrations:
 /www/server/php/84/bin/php "$(command -v composer)" install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 rm -f public/hot
 npm ci
-npm run build
+PHP_BIN=/www/server/php/84/bin/php npm run build
 /www/server/php/84/bin/php artisan migrate --force
 /www/server/php/84/bin/php artisan optimize:clear
 /www/server/php/84/bin/php artisan optimize
