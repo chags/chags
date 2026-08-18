@@ -7,7 +7,7 @@ o terminal e não executa comandos no servidor.
 ## Criar a conta FTP no aaPanel
 
 1. Abra `FTP` no aaPanel e clique em `Add FTP`.
-2. Vincule a conta à pasta do projeto, por exemplo `/www/wwwroot/chags`.
+2. Vincule a conta diretamente à pasta raiz do projeto.
 3. Guarde o servidor, usuário e senha gerados.
 4. Verifique se a porta FTP `21` está liberada no firewall do servidor e do
    provedor.

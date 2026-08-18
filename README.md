@@ -39,21 +39,20 @@ Este projeto utiliza Docker como ambiente principal para desenvolvimento.
 ## Instalação em produção no aaPanel
 
 O servidor de produção não utiliza Docker. O site já deve estar configurado no
-aaPanel com PHP 8.4 e raiz em:
+aaPanel com PHP 8.4, apontando para a subpasta `public` da raiz do projeto:
 
 ```text
-/www/wwwroot/chags/public
+<raiz-do-projeto>/public
 ```
 
 Antes de instalar, habilite no PHP as extensões `pdo_pgsql`, `pgsql`, `gd`,
 `intl`, `mbstring`, `openssl`, `fileinfo`, `tokenizer`, `xml`, `ctype`, `curl` e
 `zip`. Instale também Composer, Node.js 22 ou superior, npm e PostgreSQL.
 
-Depois que o GitHub Actions concluir o envio por FTP, abra o terminal do aaPanel
-e execute:
+Depois que o GitHub Actions concluir o envio por FTP, abra o terminal do aaPanel.
+Já estando na raiz do projeto, execute:
 
 ```bash
-cd /www/wwwroot/chags
 chmod 700 install.sh
 ./install.sh
 ```
@@ -75,9 +74,7 @@ recebe backup antes de qualquer alteração.
 
 A senha do banco não é exibida. Toda a execução é registrada em:
 
-```text
-/www/wwwroot/chags/install-report.log
-```
+O relatório será salvo como `install-report.log` na mesma pasta do instalador.
 
 Se ocorrer uma falha, o terminal e o relatório mostrarão a etapa, linha,
 comando e código do erro. Para usar outro PHP ou usuário do PHP-FPM:
@@ -90,7 +87,6 @@ Após futuras atualizações por FTP, rode novamente Composer, o build e as
 migrations:
 
 ```bash
-cd /www/wwwroot/chags
 /www/server/php/84/bin/php "$(command -v composer)" install --no-dev --no-interaction --prefer-dist --optimize-autoloader
 rm -f public/hot
 npm ci

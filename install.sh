@@ -2,7 +2,7 @@
 
 set -Eeuo pipefail
 
-PROJECT_DIR="${PROJECT_DIR:-/www/wwwroot/chags}"
+PROJECT_DIR="${PROJECT_DIR:-$(pwd -P)}"
 WEB_USER="${WEB_USER:-www}"
 PHP_BIN="${PHP_BIN:-/www/server/php/84/bin/php}"
 ENV_FILE="$PROJECT_DIR/.env"
