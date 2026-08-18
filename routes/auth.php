@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Route;
 use Laravel\WorkOS\Http\Requests\AuthKitAuthenticationRequest;
 use Laravel\WorkOS\Http\Requests\AuthKitLoginRequest;
+use Laravel\WorkOS\Http\Requests\AuthKitLogoutRequest;
 
 Route::middleware(['guest'])->group(function () {
     Route::get('login', function (AuthKitLoginRequest $request) {
@@ -62,10 +63,18 @@ Route::middleware(['guest'])->group(function () {
     });
 });
 
-Route::post('logout', function (Request $request) {
-    if (Auth::check()) {
-        Auth::logout();
+Route::post('logout', function (AuthKitLogoutRequest $request) {
+    $workosConfigured = app()->environment('production')
+        && filled(config('services.workos.client_id'))
+        && filled(config('services.workos.secret'));
+
+    if ($workosConfigured) {
+        return $request->logout('/');
     }
+
+    Auth::logout();
+    $request->session()->invalidate();
+    $request->session()->regenerateToken();
 
     return redirect('/');
 })->middleware(['auth'])->name('logout');

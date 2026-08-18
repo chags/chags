@@ -63,3 +63,15 @@ test('production redirects login requests to WorkOS AuthKit', function () {
         app()->detectEnvironment(fn () => $originalEnvironment);
     }
 });
+
+test('local logout invalidates the authenticated session', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->withSession(['temporary_value' => 'present'])
+        ->post('/logout')
+        ->assertRedirect('/')
+        ->assertSessionMissing('temporary_value');
+
+    $this->assertGuest();
+});
