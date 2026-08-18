@@ -1,7 +1,13 @@
 <?php
 
 use App\Models\User;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Support\Facades\Hash;
+use Inertia\Testing\AssertableInertia as Assert;
+
+beforeEach(function () {
+    $this->withoutMiddleware(PreventRequestForgery::class);
+});
 
 test('local hosts can use a local fallback login page when WorkOS is not configured', function () {
     config([
@@ -14,7 +20,7 @@ test('local hosts can use a local fallback login page when WorkOS is not configu
     $this->withServerVariables(['HTTP_HOST' => 'localhost'])
         ->get('/login')
         ->assertOk()
-        ->assertSee('Login provisório');
+        ->assertInertia(fn (Assert $page) => $page->component('auth/login-provisorio'));
 });
 
 test('local hosts can authenticate with email and password', function () {

@@ -2,6 +2,21 @@
 
 return [
 
+    'cnpja' => [
+        'url' => env('CNPJA_URL', 'https://open.cnpja.com'),
+        'timeout' => (int) env('CNPJA_TIMEOUT', 10),
+    ],
+
+    'brasilapi' => [
+        'url' => env('BRASIL_API_URL', 'https://brasilapi.com.br/api'),
+        'timeout' => (int) env('BRASIL_API_TIMEOUT', 10),
+    ],
+
+    'turnstile' => [
+        'local_site_key' => env('TURNSTILE_LOCAL_SITE_KEY', '1x00000000000000000000AA'),
+        'local_secret_key' => env('TURNSTILE_LOCAL_SECRET_KEY', '1x0000000000000000000000000000000AA'),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Third Party Services

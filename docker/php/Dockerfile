@@ -5,6 +5,8 @@ RUN apk add --no-cache \
     curl \
     git \
     unzip \
+    poppler-utils \
+    antiword \
     libpng-dev \
     libjpeg-turbo-dev \
     libwebp-dev \
@@ -19,7 +21,9 @@ RUN apk add --no-cache \
     && curl -sS https://getcomposer.org/installer | php -- --install-dir=/usr/local/bin --filename=composer
 
 COPY --from=node:22-alpine /usr/local/bin/node /usr/local/bin/
-COPY --from=node:22-alpine /usr/local/bin/npm /usr/local/bin/
+COPY --from=node:22-alpine /usr/local/lib/node_modules /usr/local/lib/node_modules
+RUN ln -sf ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
+    && ln -sf ../lib/node_modules/npm/bin/npx-cli.js /usr/local/bin/npx
 
 WORKDIR /var/www
 

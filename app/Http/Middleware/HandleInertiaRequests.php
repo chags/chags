@@ -2,7 +2,9 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\Company;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Schema;
 use Inertia\Middleware;
 
 class HandleInertiaRequests extends Middleware
@@ -40,8 +42,43 @@ class HandleInertiaRequests extends Middleware
             'name' => config('app.name'),
             'auth' => [
                 'user' => $request->user(),
+                'impersonation' => [
+                    'active' => $request->session()->has('impersonation.original_user_id'),
+                ],
+                'abilities' => [
+                    'candidatePortal' => $request->user()?->can('applications.view-own') ?? false,
+                    'systemSettingsView' => $request->user()?->can('system.settings.view') ?? false,
+                    'usersView' => $request->user()?->can('users.view') ?? false,
+                    'hrView' => ($request->user()?->can('jobs.view') ?? false)
+                        || ($request->user()?->can('employees.view') ?? false),
+                ],
             ],
+            'companyBrand' => fn () => $this->companyBrand(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+        ];
+    }
+
+    /** @return array{name: string, unit: string, logoUrl: ?string}|null */
+    private function companyBrand(): ?array
+    {
+        if (! Schema::hasTable('companies')) {
+            return null;
+        }
+
+        $company = Company::query()
+            ->where('active', true)
+            ->orderByRaw("CASE WHEN unit_type = 'headquarters' THEN 0 ELSE 1 END")
+            ->orderBy('id')
+            ->first();
+
+        if (! $company) {
+            return null;
+        }
+
+        return [
+            'name' => $company->trade_name ?: $company->name,
+            'unit' => $company->unit_name,
+            'logoUrl' => $company->logo_url,
         ];
     }
 }
