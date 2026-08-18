@@ -14,6 +14,7 @@
 .DS_Store
 .env
 .env.backup
+.env.backup.*
 .env.production
 .phpactor.json
 .phpunit.result.cache
@@ -28,4 +29,5 @@ yarn-error.log
 /.vscode
 /.zed
 /.ftp-deploy-sync-state.json
+/install-report.log
 /.docs/

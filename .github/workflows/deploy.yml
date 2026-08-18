@@ -37,8 +37,8 @@ jobs:
             **/.git*/**
             **/.github/**
             **/.env
-            **/.env.backup
-            **/.env.production
+            **/.env.backup*
+            **/.env.production*
             **/vendor/**
             **/node_modules/**
             **/public/build/**
@@ -50,3 +50,4 @@ jobs:
             **/storage/framework/views/**
             **/.phpunit.cache/**
             **/.phpunit.result.cache
+            **/install-report.log

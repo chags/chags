@@ -36,7 +36,70 @@ Este projeto utiliza Docker como ambiente principal para desenvolvimento.
 - Use `docker compose exec app php artisan ...` para rodar comandos do Laravel dentro do container.
 - O app fica disponível em `http://localhost:9000`.
 
+## Instalação em produção no aaPanel
+
+O servidor de produção não utiliza Docker. O site já deve estar configurado no
+aaPanel com PHP 8.4 e raiz em:
+
+```text
+/www/wwwroot/chags/public
+```
+
+Antes de instalar, habilite no PHP as extensões `pdo_pgsql`, `pgsql`, `gd`,
+`intl`, `mbstring`, `openssl`, `fileinfo`, `tokenizer`, `xml`, `ctype`, `curl` e
+`zip`. Instale também Composer, Node.js 22 ou superior, npm e PostgreSQL.
+
+Depois que o GitHub Actions concluir o envio por FTP, abra o terminal do aaPanel
+e execute:
+
+```bash
+cd /www/wwwroot/chags
+chmod 700 install.sh
+./install.sh
+```
+
+O instalador solicita e valida:
+
+- Nome e URL pública da aplicação.
+- Servidor e porta do PostgreSQL.
+- Nome do banco, usuário e senha.
+- PHP 8.4 e extensões obrigatórias.
+- Composer, Node.js e npm.
+- Conexão real com o banco antes das migrations.
+- Permissões do Laravel e geração do build do Vite.
+
+O arquivo `.env` é criado a partir do `.env.example` com `APP_ENV=production`,
+`APP_DEBUG=false` e uma nova `APP_KEY`. Se já existir uma `APP_KEY`, ela será
+preservada para não invalidar dados criptografados. Um `.env` existente também
+recebe backup antes de qualquer alteração.
+
+A senha do banco não é exibida. Toda a execução é registrada em:
+
+```text
+/www/wwwroot/chags/install-report.log
+```
+
+Se ocorrer uma falha, o terminal e o relatório mostrarão a etapa, linha,
+comando e código do erro. Para usar outro PHP ou usuário do PHP-FPM:
+
+```bash
+PHP_BIN=/caminho/do/php WEB_USER=www ./install.sh
+```
+
+Após futuras atualizações por FTP, rode novamente Composer, o build e as
+migrations:
+
+```bash
+cd /www/wwwroot/chags
+/www/server/php/84/bin/php "$(command -v composer)" install --no-dev --no-interaction --prefer-dist --optimize-autoloader
+rm -f public/hot
+npm ci
+npm run build
+/www/server/php/84/bin/php artisan migrate --force
+/www/server/php/84/bin/php artisan optimize:clear
+/www/server/php/84/bin/php artisan optimize
+```
+
 ## Contato
 
 Entre em contato para conhecer nossos serviços e descobrir como podemos apoiar sua organização.
-

@@ -37,23 +37,7 @@ workflow é `./`.
 O arquivo `.env.example` é enviado normalmente como referência. O `.env` real
 deve ser criado e mantido diretamente no servidor.
 
-## Comandos no servidor
+## Instalação no servidor
 
-Após o primeiro envio, acesse o terminal do aaPanel e execute os comandos de
-instalação e inicialização que forem necessários. Para a composição Docker de
-produção incluída no projeto, o fluxo é:
-
-```bash
-cd /www/wwwroot/chags
-cp .env.example .env
-# Edite o .env antes de continuar.
-docker compose -f docker-compose.production.yml up -d --build
-docker exec chags-app npm ci
-docker exec chags-app npm run build
-docker exec chags-app php artisan optimize
-docker exec chags-app php artisan storage:link
-```
-
-Nos próximos envios, execute novamente apenas os comandos necessários para a
-alteração publicada, como migrations, build dos assets ou reinício dos
-containers.
+O servidor não utiliza Docker. Após o primeiro envio, siga a seção "Instalação
+em produção no aaPanel" do `README.md` e execute o arquivo `install.sh`.
