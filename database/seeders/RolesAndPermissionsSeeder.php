@@ -125,6 +125,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'system.settings.company.update',
             'system.settings.mail.update',
             'system.settings.mail.test',
+            'system.settings.seo.update',
             'system.settings.appearance.update',
             'system.settings.turnstile.update',
             'system.settings.ai.update',

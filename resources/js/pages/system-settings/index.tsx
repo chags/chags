@@ -15,6 +15,7 @@ import {
     test as testMail,
     update as updateMail,
 } from '@/routes/system-settings/mail';
+import { update as updateSeo } from '@/routes/system-settings/seo';
 import { update as updateTurnstile } from '@/routes/system-settings/turnstile';
 
 type Company = {
@@ -57,6 +58,21 @@ type TurnstileSettings = {
     has_secret_key: boolean;
 };
 
+type SeoSettings = {
+    title: string;
+    description: string;
+    canonical_url: string;
+    robots: 'index, follow' | 'noindex, nofollow';
+    og_title: string;
+    og_description: string;
+    og_image_url: string;
+    og_url: string;
+    og_type: 'website';
+    og_locale: string;
+    ga4_measurement_id: string;
+    meta_pixel_id: string;
+};
+
 type AiProvider = {
     id: number;
     name: string;
@@ -71,11 +87,13 @@ type AiProvider = {
     max_output_tokens: number;
     temperature: number;
     last_tested_at: string | null;
+    last_test_succeeded: boolean | null;
 };
 
 type Props = {
     companies: Company[];
     mailSettings: MailSettings | null;
+    seoSettings: SeoSettings;
     turnstileSettings: TurnstileSettings;
     aiProviders: AiProvider[];
     theme: string;
@@ -83,6 +101,7 @@ type Props = {
         companyUpdate: boolean;
         mailUpdate: boolean;
         mailTest: boolean;
+        seoUpdate: boolean;
         appearanceUpdate: boolean;
         turnstileUpdate: boolean;
         aiUpdate: boolean;
@@ -90,7 +109,7 @@ type Props = {
     };
 };
 
-type Tab = 'company' | 'mail' | 'turnstile' | 'ai' | 'appearance';
+type Tab = 'company' | 'mail' | 'seo' | 'turnstile' | 'ai' | 'appearance';
 type CompanySort = 'unit' | 'type' | 'cnpj' | 'location' | 'status';
 
 const csrfToken = () =>
@@ -163,6 +182,7 @@ const aiProviderOptions = [
 export default function SystemSettings({
     companies,
     mailSettings,
+    seoSettings,
     turnstileSettings,
     aiProviders,
     theme,
@@ -424,6 +444,31 @@ export default function SystemSettings({
         }
     };
 
+    const saveSeo = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setProcessing(true);
+
+        try {
+            const route = updateSeo();
+            const result = await jsonRequest(
+                route.url,
+                route.method,
+                Object.fromEntries(new FormData(event.currentTarget)),
+            );
+            notify('success', result.message);
+            router.reload({ only: ['seoSettings', 'seo'] });
+        } catch (error) {
+            notify(
+                'error',
+                error instanceof Error
+                    ? error.message
+                    : 'Erro ao salvar as configurações de SEO.',
+            );
+        } finally {
+            setProcessing(false);
+        }
+    };
+
     const saveTurnstile = async (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         setProcessing(true);
@@ -596,6 +641,7 @@ export default function SystemSettings({
                         [
                             ['company', 'Empresa'],
                             ['mail', 'E-mail (SMTP)'],
+                            ['seo', 'SEO e rastreamento'],
                             ['turnstile', 'Turnstile'],
                             ['ai', 'Inteligência Artificial'],
                             ['appearance', 'Aparência'],
@@ -1022,6 +1068,176 @@ export default function SystemSettings({
                                     </button>
                                 )}
                             </div>
+                        </form>
+                    </section>
+                )}
+
+                {tab === 'seo' && (
+                    <section className="card flex-1 border border-base-300 bg-base-100 shadow-sm">
+                        <form onSubmit={saveSeo} className="card-body">
+                            <h2 className="card-title">SEO e rastreamento</h2>
+                            <p className="text-sm text-base-content/60">
+                                Configure a apresentação do site nos buscadores
+                                e redes sociais e, opcionalmente, habilite GA4 e
+                                Meta Pixel.
+                            </p>
+
+                            <div className="divider mt-5">Google</div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <Field label="Título do site">
+                                    <input
+                                        className="input w-full"
+                                        name="title"
+                                        maxLength={70}
+                                        defaultValue={seoSettings.title}
+                                        placeholder="Título da página | Nome da empresa"
+                                    />
+                                </Field>
+                                <Field label="URL canônica">
+                                    <input
+                                        className="input w-full"
+                                        type="url"
+                                        name="canonical_url"
+                                        defaultValue={seoSettings.canonical_url}
+                                        placeholder="https://chags.com.br"
+                                    />
+                                </Field>
+                                <div className="md:col-span-2">
+                                    <Field label="Descrição (até 160 caracteres)">
+                                        <textarea
+                                            className="textarea w-full"
+                                            name="description"
+                                            maxLength={160}
+                                            rows={3}
+                                            defaultValue={
+                                                seoSettings.description
+                                            }
+                                        />
+                                    </Field>
+                                </div>
+                                <Field label="Indexação">
+                                    <select
+                                        className="select w-full"
+                                        name="robots"
+                                        defaultValue={seoSettings.robots}
+                                    >
+                                        <option value="index, follow">
+                                            Indexar e seguir links
+                                        </option>
+                                        <option value="noindex, nofollow">
+                                            Não indexar
+                                        </option>
+                                    </select>
+                                </Field>
+                                <Field label="ID de medição do GA4">
+                                    <input
+                                        className="input w-full uppercase"
+                                        name="ga4_measurement_id"
+                                        defaultValue={
+                                            seoSettings.ga4_measurement_id
+                                        }
+                                        placeholder="G-XXXXXXXXXX"
+                                        pattern="G-[A-Z0-9]+"
+                                    />
+                                </Field>
+                            </div>
+
+                            <div className="divider mt-5">
+                                Facebook e Instagram (Open Graph)
+                            </div>
+                            <div className="grid gap-4 md:grid-cols-2">
+                                <Field label="Título para compartilhamento">
+                                    <input
+                                        className="input w-full"
+                                        name="og_title"
+                                        maxLength={95}
+                                        defaultValue={seoSettings.og_title}
+                                    />
+                                </Field>
+                                <Field label="URL compartilhada">
+                                    <input
+                                        className="input w-full"
+                                        type="url"
+                                        name="og_url"
+                                        defaultValue={seoSettings.og_url}
+                                    />
+                                </Field>
+                                <div className="md:col-span-2">
+                                    <Field label="Descrição para compartilhamento">
+                                        <textarea
+                                            className="textarea w-full"
+                                            name="og_description"
+                                            maxLength={200}
+                                            rows={3}
+                                            defaultValue={
+                                                seoSettings.og_description
+                                            }
+                                        />
+                                    </Field>
+                                </div>
+                                <div className="md:col-span-2">
+                                    <Field label="URL absoluta da imagem de compartilhamento">
+                                        <input
+                                            className="input w-full"
+                                            type="url"
+                                            name="og_image_url"
+                                            defaultValue={
+                                                seoSettings.og_image_url
+                                            }
+                                            placeholder="https://chags.com.br/storage/.../imagem.webp"
+                                        />
+                                    </Field>
+                                </div>
+                                <Field label="Tipo Open Graph">
+                                    <select
+                                        className="select w-full"
+                                        name="og_type"
+                                        defaultValue={seoSettings.og_type}
+                                    >
+                                        <option value="website">Website</option>
+                                    </select>
+                                </Field>
+                                <Field label="Localidade Open Graph">
+                                    <input
+                                        className="input w-full"
+                                        name="og_locale"
+                                        defaultValue={seoSettings.og_locale}
+                                        pattern="[a-z]{2}_[A-Z]{2}"
+                                        placeholder="pt_BR"
+                                    />
+                                </Field>
+                                <Field label="ID do Meta Pixel">
+                                    <input
+                                        className="input w-full"
+                                        name="meta_pixel_id"
+                                        inputMode="numeric"
+                                        pattern="[0-9]+"
+                                        defaultValue={seoSettings.meta_pixel_id}
+                                        placeholder="123456789012345"
+                                    />
+                                </Field>
+                            </div>
+
+                            <p className="mt-4 text-xs text-base-content/55">
+                                Os scripts de rastreamento só são carregados
+                                quando um ID válido é salvo. Avalie a
+                                necessidade de consentimento conforme a LGPD
+                                antes de ativá-los.
+                            </p>
+
+                            {abilities.seoUpdate && (
+                                <div className="mt-5 card-actions justify-end">
+                                    <button
+                                        disabled={processing}
+                                        className="btn btn-primary"
+                                    >
+                                        {processing ? (
+                                            <span className="loading loading-spinner" />
+                                        ) : null}
+                                        Salvar SEO
+                                    </button>
+                                </div>
+                            )}
                         </form>
                     </section>
                 )}

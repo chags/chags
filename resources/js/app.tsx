@@ -1,4 +1,4 @@
-import { createInertiaApp } from '@inertiajs/react';
+import { createInertiaApp, router } from '@inertiajs/react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
@@ -38,3 +38,11 @@ createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+
+router.on('navigate', () => {
+    window.gtag?.('event', 'page_view', {
+        page_location: window.location.href,
+        page_title: document.title,
+    });
+    window.fbq?.('track', 'PageView');
+});

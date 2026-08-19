@@ -1,5 +1,16 @@
 import type { Auth } from '@/types/auth';
 
+declare global {
+    interface Window {
+        gtag?: (
+            command: string,
+            eventName: string,
+            parameters?: Record<string, unknown>,
+        ) => void;
+        fbq?: (command: string, eventName: string) => void;
+    }
+}
+
 declare module 'react' {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     interface InputHTMLAttributes<T> {
@@ -17,6 +28,7 @@ declare module '@inertiajs/core' {
                 unit: string;
                 logoUrl: string | null;
             } | null;
+            seo: Record<string, string>;
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

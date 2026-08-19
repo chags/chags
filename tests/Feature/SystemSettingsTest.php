@@ -19,6 +19,7 @@ beforeEach(function () {
         'system.settings.company.update',
         'system.settings.mail.update',
         'system.settings.mail.test',
+        'system.settings.seo.update',
         'system.settings.appearance.update',
         'system.settings.turnstile.update',
         'system.settings.ai.update',
@@ -33,6 +34,38 @@ test('an administrator can access system settings', function () {
     $user->assignRole('administrador');
 
     $this->actingAs($user)->get('/settings/system')->assertOk();
+});
+
+test('an administrator can configure global seo and tracking tags', function () {
+    $user = User::factory()->create();
+    $user->assignRole('administrador');
+
+    $settings = [
+        'title' => 'Carreiras Chags',
+        'description' => 'Encontre oportunidades e acompanhe seu processo seletivo na Chags.',
+        'canonical_url' => 'https://chags.com.br',
+        'robots' => 'index, follow',
+        'og_title' => 'Trabalhe na Chags',
+        'og_description' => 'Conheça nossas oportunidades profissionais.',
+        'og_image_url' => 'https://chags.com.br/storage/seo/social.webp',
+        'og_url' => 'https://chags.com.br',
+        'og_type' => 'website',
+        'og_locale' => 'pt_BR',
+        'ga4_measurement_id' => 'G-ABC1234567',
+        'meta_pixel_id' => '123456789012345',
+    ];
+
+    $this->actingAs($user)
+        ->putJson('/settings/system/seo', $settings)
+        ->assertOk()
+        ->assertJsonPath('message', 'Configurações de SEO e rastreamento atualizadas com sucesso.');
+
+    $this->get('/')
+        ->assertOk()
+        ->assertSee('<meta name="description" content="'.$settings['description'].'">', false)
+        ->assertSee('<meta property="og:title" content="'.$settings['og_title'].'">', false)
+        ->assertSee('googletagmanager.com/gtag/js?id=G-ABC1234567', false)
+        ->assertSee('facebook.com/tr?id=123456789012345', false);
 });
 
 test('a user without permission cannot access system settings', function () {
@@ -238,4 +271,10 @@ test('company logo upload is converted to webp', function () {
 
     expect($path)->toEndWith('.webp');
     Storage::disk('public')->assertExists($path);
+
+    $this->actingAs($user)
+        ->get('/dashboard')
+        ->assertOk()
+        ->assertSee('rel="icon" href="/storage/'.$path.'"', false)
+        ->assertSee('rel="apple-touch-icon" href="/storage/'.$path.'"', false);
 });

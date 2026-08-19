@@ -43,6 +43,9 @@ class SystemSettingsController extends Controller
             ]);
 
         $mail = MailSetting::query()->first();
+        $seo = ApplicationSetting::query()
+            ->where('key', 'like', 'seo.%')
+            ->pluck('value', 'key');
         $turnstile = TurnstileSetting::query()->first();
         $aiProviders = AiProviderSetting::query()
             ->orderByDesc('is_default')
@@ -78,6 +81,20 @@ class SystemSettingsController extends Controller
                 'timeout' => $mail->timeout,
                 'last_tested_at' => $mail->last_tested_at?->toIso8601String(),
             ] : null,
+            'seoSettings' => [
+                'title' => $seo->get('seo.title', ''),
+                'description' => $seo->get('seo.description', ''),
+                'canonical_url' => $seo->get('seo.canonical_url', config('app.url')),
+                'robots' => $seo->get('seo.robots', 'index, follow'),
+                'og_title' => $seo->get('seo.og_title', ''),
+                'og_description' => $seo->get('seo.og_description', ''),
+                'og_image_url' => $seo->get('seo.og_image_url', ''),
+                'og_url' => $seo->get('seo.og_url', config('app.url')),
+                'og_type' => $seo->get('seo.og_type', 'website'),
+                'og_locale' => $seo->get('seo.og_locale', 'pt_BR'),
+                'ga4_measurement_id' => $seo->get('seo.ga4_measurement_id', ''),
+                'meta_pixel_id' => $seo->get('seo.meta_pixel_id', ''),
+            ],
             'theme' => ApplicationSetting::query()->where('key', 'theme')->value('value') ?? 'forest',
             'turnstileSettings' => [
                 'enabled' => $turnstile?->enabled ?? false,
@@ -89,6 +106,7 @@ class SystemSettingsController extends Controller
                 'companyUpdate' => $request->user()->can('system.settings.company.update'),
                 'mailUpdate' => $request->user()->can('system.settings.mail.update'),
                 'mailTest' => $request->user()->can('system.settings.mail.test'),
+                'seoUpdate' => $request->user()->can('system.settings.seo.update'),
                 'appearanceUpdate' => $request->user()->can('system.settings.appearance.update'),
                 'turnstileUpdate' => $request->user()->can('system.settings.turnstile.update'),
                 'aiUpdate' => $request->user()->can('system.settings.ai.update'),

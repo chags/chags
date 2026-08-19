@@ -8,6 +8,7 @@ use App\Http\Controllers\System\CnpjLookupController;
 use App\Http\Controllers\System\CompanyController;
 use App\Http\Controllers\System\CompanyLogoController;
 use App\Http\Controllers\System\MailSettingsController;
+use App\Http\Controllers\System\SeoSettingsController;
 use App\Http\Controllers\System\SystemSettingsController;
 use App\Http\Controllers\System\TurnstileSettingsController;
 use App\Http\Controllers\Users\UserAvatarController;
@@ -61,6 +62,7 @@ Route::middleware($settingsMiddleware)->group(function () {
         Route::post('companies/{company}/logo', [CompanyLogoController::class, 'store'])->name('companies.logo.store');
         Route::put('mail', [MailSettingsController::class, 'update'])->name('mail.update');
         Route::post('mail/test', [MailSettingsController::class, 'test'])->middleware('throttle:5,1')->name('mail.test');
+        Route::put('seo', [SeoSettingsController::class, 'update'])->name('seo.update');
         Route::put('appearance', [AppearanceSettingsController::class, 'update'])->name('appearance.update');
         Route::put('turnstile', [TurnstileSettingsController::class, 'update'])->name('turnstile.update');
         Route::post('ai/providers', [AiProviderSettingsController::class, 'store'])->name('ai.providers.store');

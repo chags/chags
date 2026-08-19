@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Models\ApplicationSetting;
 use App\Models\Company;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -54,6 +55,7 @@ class HandleInertiaRequests extends Middleware
                 ],
             ],
             'companyBrand' => fn () => $this->companyBrand(),
+            'seo' => fn () => $this->seoSettings(),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }
@@ -80,5 +82,19 @@ class HandleInertiaRequests extends Middleware
             'unit' => $company->unit_name,
             'logoUrl' => $company->logo_url,
         ];
+    }
+
+    /** @return array<string, string> */
+    private function seoSettings(): array
+    {
+        if (! Schema::hasTable('application_settings')) {
+            return [];
+        }
+
+        return ApplicationSetting::query()
+            ->where('key', 'like', 'seo.%')
+            ->pluck('value', 'key')
+            ->mapWithKeys(fn (?string $value, string $key) => [str($key)->after('seo.')->toString() => $value ?? ''])
+            ->all();
     }
 }
