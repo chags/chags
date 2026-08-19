@@ -20,6 +20,14 @@ services:
       DB_DATABASE: chagsdb
       DB_USERNAME: chags
       DB_PASSWORD: chags
+      MAIL_MAILER: smtp
+      MAIL_SCHEME: null
+      MAIL_HOST: mailpit
+      MAIL_PORT: 1025
+      MAIL_USERNAME: null
+      MAIL_PASSWORD: null
+      MAIL_FROM_ADDRESS: no-reply@chags.local
+      MAIL_FROM_NAME: Chags
     command: >
       sh -c "composer install --no-interaction --prefer-dist &&
       chown -R www-data:www-data storage bootstrap/cache &&
@@ -61,6 +69,16 @@ services:
       start_period: 10s
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - chags
+
+  mailpit:
+    image: axllent/mailpit:latest
+    container_name: chags-mailpit
+    restart: unless-stopped
+    ports:
+      - "1026:1025"
+      - "8026:8025"
     networks:
       - chags
 

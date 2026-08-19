@@ -1,5 +1,4 @@
 import { faBookOpen } from '@fortawesome/free-solid-svg-icons/faBookOpen';
-import { faArrowUpRightFromSquare } from '@fortawesome/free-solid-svg-icons/faArrowUpRightFromSquare';
 import { faGaugeHigh } from '@fortawesome/free-solid-svg-icons/faGaugeHigh';
 import { faPeopleGroup } from '@fortawesome/free-solid-svg-icons/faPeopleGroup';
 import { faGear } from '@fortawesome/free-solid-svg-icons/faGear';
@@ -10,7 +9,7 @@ import { faUsers } from '@fortawesome/free-solid-svg-icons/faUsers';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Link, usePage } from '@inertiajs/react';
 import { useCurrentUrl } from '@/hooks/use-current-url';
-import { dashboard, home } from '@/routes';
+import { dashboard } from '@/routes';
 import { dashboard as hrDashboard } from '@/routes/hr';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit as editProfile } from '@/routes/profile';
@@ -77,6 +76,26 @@ export function AppSidebar({ collapsed = false }: Props) {
                         Visão geral
                     </li>
 
+                    <li>
+                        <Link
+                            href={dashboard()}
+                            onClick={closeMobileDrawer}
+                            data-tip="Dashboard"
+                            className={`!flex min-h-14 items-center gap-3 ${iconLinkClass} ${isCurrentUrl(dashboard()) ? 'menu-active font-semibold' : ''}`}
+                        >
+                            <FontAwesomeIcon
+                                icon={faGaugeHigh}
+                                className="block shrink-0 text-2xl"
+                                fixedWidth
+                            />
+                            <span
+                                className={`flex items-center leading-none ${collapsedClass}`}
+                            >
+                                Dashboard
+                            </span>
+                        </Link>
+                    </li>
+
                     {auth.abilities.hrView && (
                         <>
                             <li className={`mt-4 menu-title ${collapsedClass}`}>
@@ -103,47 +122,6 @@ export function AppSidebar({ collapsed = false }: Props) {
                             </li>
                         </>
                     )}
-                    <li>
-                        <Link
-                            href={dashboard()}
-                            onClick={closeMobileDrawer}
-                            data-tip="Dashboard"
-                            className={`!flex min-h-14 items-center gap-3 ${iconLinkClass} ${isCurrentUrl(dashboard()) ? 'menu-active font-semibold' : ''}`}
-                        >
-                            <FontAwesomeIcon
-                                icon={faGaugeHigh}
-                                className="block shrink-0 text-2xl"
-                                fixedWidth
-                            />
-                            <span
-                                className={`flex items-center leading-none ${collapsedClass}`}
-                            >
-                                Dashboard
-                            </span>
-                        </Link>
-                    </li>
-                    <li>
-                        <a
-                            href={home().url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={closeMobileDrawer}
-                            data-tip="Ir para o site"
-                            className={`!flex min-h-14 items-center gap-3 ${iconLinkClass}`}
-                        >
-                            <FontAwesomeIcon
-                                icon={faArrowUpRightFromSquare}
-                                className="block shrink-0 text-2xl"
-                                fixedWidth
-                            />
-                            <span
-                                className={`flex items-center leading-none ${collapsedClass}`}
-                            >
-                                Ir para o site
-                            </span>
-                        </a>
-                    </li>
-
                     <li className={`mt-4 menu-title ${collapsedClass}`}>
                         Conta
                     </li>
