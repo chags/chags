@@ -1,8 +1,6 @@
 import { faBookOpen } from '@fortawesome/free-solid-svg-icons/faBookOpen';
 import { faGaugeHigh } from '@fortawesome/free-solid-svg-icons/faGaugeHigh';
 import { faPeopleGroup } from '@fortawesome/free-solid-svg-icons/faPeopleGroup';
-import { faGear } from '@fortawesome/free-solid-svg-icons/faGear';
-import { faPalette } from '@fortawesome/free-solid-svg-icons/faPalette';
 import { faShieldHalved } from '@fortawesome/free-solid-svg-icons/faShieldHalved';
 import { faSliders } from '@fortawesome/free-solid-svg-icons/faSliders';
 import { faUsers } from '@fortawesome/free-solid-svg-icons/faUsers';
@@ -11,8 +9,6 @@ import { Link, usePage } from '@inertiajs/react';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { dashboard } from '@/routes';
 import { dashboard as hrDashboard } from '@/routes/hr';
-import { edit as editAppearance } from '@/routes/appearance';
-import { edit as editProfile } from '@/routes/profile';
 import { index as systemSettings } from '@/routes/system-settings';
 import { index as usersIndex } from '@/routes/users';
 
@@ -122,47 +118,6 @@ export function AppSidebar({ collapsed = false }: Props) {
                             </li>
                         </>
                     )}
-                    <li className={`mt-4 menu-title ${collapsedClass}`}>
-                        Conta
-                    </li>
-                    <li>
-                        <Link
-                            href={editProfile()}
-                            onClick={closeMobileDrawer}
-                            data-tip="Perfil e segurança"
-                            className={`!flex min-h-14 items-center gap-3 ${iconLinkClass} ${isCurrentUrl(editProfile()) ? 'menu-active font-semibold' : ''}`}
-                        >
-                            <FontAwesomeIcon
-                                icon={faGear}
-                                className="block shrink-0 text-2xl"
-                                fixedWidth
-                            />
-                            <span
-                                className={`flex items-center leading-none ${collapsedClass}`}
-                            >
-                                Perfil e segurança
-                            </span>
-                        </Link>
-                    </li>
-                    <li>
-                        <Link
-                            href={editAppearance()}
-                            onClick={closeMobileDrawer}
-                            data-tip="Aparência"
-                            className={`!flex min-h-14 items-center gap-3 ${iconLinkClass} ${isCurrentUrl(editAppearance()) ? 'menu-active font-semibold' : ''}`}
-                        >
-                            <FontAwesomeIcon
-                                icon={faPalette}
-                                className="block shrink-0 text-2xl"
-                                fixedWidth
-                            />
-                            <span
-                                className={`flex items-center leading-none ${collapsedClass}`}
-                            >
-                                Aparência
-                            </span>
-                        </Link>
-                    </li>
                     {auth.abilities.systemSettingsView && (
                         <>
                             <li className={`mt-4 menu-title ${collapsedClass}`}>
