@@ -24,6 +24,7 @@ class UserRequest extends FormRequest
             'phone' => preg_replace('/\D/', '', (string) $this->input('phone')) ?: null,
             'postal_code' => preg_replace('/\D/', '', (string) $this->input('postal_code')) ?: null,
             'state' => strtoupper((string) $this->input('state')) ?: null,
+            'tracks_time' => $this->boolean('tracks_time'),
         ]);
     }
 
@@ -48,6 +49,21 @@ class UserRequest extends FormRequest
             'state' => ['nullable', 'string', 'size:2'],
             'password' => [$user ? 'nullable' : 'required', 'string', 'min:8', 'confirmed'],
             'role' => ['required', Rule::in(RoleCatalog::names())],
+            'tracks_time' => ['required', 'boolean'],
+            'work_schedule_group_id' => [
+                Rule::requiredIf($this->boolean('tracks_time')),
+                'nullable',
+                'integer',
+                Rule::exists('work_schedule_groups', 'id')->where('active', true),
+            ],
+        ];
+    }
+
+    public function messages(): array
+    {
+        return [
+            'work_schedule_group_id.required' => 'Selecione uma escala para o usuário que bate ponto.',
+            'work_schedule_group_id.exists' => 'A escala selecionada não está disponível.',
         ];
     }
 

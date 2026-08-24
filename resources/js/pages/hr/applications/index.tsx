@@ -859,17 +859,21 @@ export default function ApplicationsIndex({
                                     </label>
                                     <label className="fieldset">
                                         <span className="fieldset-legend">
-                                            Mensagem ao candidato (obrigatória ao reprovar)
+                                            Mensagem ao candidato (obrigatória
+                                            ao reprovar)
                                         </span>
                                         <textarea
                                             name="rejection_message"
                                             className="textarea min-h-24 w-full"
                                             maxLength={2000}
-                                            defaultValue={selected.rejection_message ?? ''}
+                                            defaultValue={
+                                                selected.rejection_message ?? ''
+                                            }
                                             placeholder="Ex.: Agradecemos sua participação. Neste momento, seguiremos com outros perfis..."
                                         />
                                         <span className="label text-xs text-base-content/55">
-                                            Esta mensagem será exibida no portal do candidato.
+                                            Esta mensagem será exibida no portal
+                                            do candidato.
                                         </span>
                                     </label>
                                     <label className="fieldset">
@@ -880,11 +884,15 @@ export default function ApplicationsIndex({
                                             name="rejection_internal_notes"
                                             className="textarea min-h-24 w-full"
                                             maxLength={5000}
-                                            defaultValue={selected.rejection_internal_notes ?? ''}
+                                            defaultValue={
+                                                selected.rejection_internal_notes ??
+                                                ''
+                                            }
                                             placeholder="Informação confidencial para a equipe de RH."
                                         />
                                         <span className="label text-xs text-warning">
-                                            Uso interno: este conteúdo não será mostrado ao candidato.
+                                            Uso interno: este conteúdo não será
+                                            mostrado ao candidato.
                                         </span>
                                     </label>
                                     <div className="modal-action">

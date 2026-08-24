@@ -1,11 +1,21 @@
 import { faBookOpen } from '@fortawesome/free-solid-svg-icons/faBookOpen';
+import { faBriefcase } from '@fortawesome/free-solid-svg-icons/faBriefcase';
+import { faBuilding } from '@fortawesome/free-solid-svg-icons/faBuilding';
+import { faChevronDown } from '@fortawesome/free-solid-svg-icons/faChevronDown';
+import { faClipboardCheck } from '@fortawesome/free-solid-svg-icons/faClipboardCheck';
+import { faClock } from '@fortawesome/free-solid-svg-icons/faClock';
+import { faFileLines } from '@fortawesome/free-solid-svg-icons/faFileLines';
 import { faGaugeHigh } from '@fortawesome/free-solid-svg-icons/faGaugeHigh';
+import { faHouse } from '@fortawesome/free-solid-svg-icons/faHouse';
+import { faIdBadge } from '@fortawesome/free-solid-svg-icons/faIdBadge';
+import { faLaptop } from '@fortawesome/free-solid-svg-icons/faLaptop';
 import { faPeopleGroup } from '@fortawesome/free-solid-svg-icons/faPeopleGroup';
 import { faShieldHalved } from '@fortawesome/free-solid-svg-icons/faShieldHalved';
 import { faSliders } from '@fortawesome/free-solid-svg-icons/faSliders';
 import { faUsers } from '@fortawesome/free-solid-svg-icons/faUsers';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Link, usePage } from '@inertiajs/react';
+import { useState } from 'react';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { dashboard } from '@/routes';
 import { dashboard as hrDashboard } from '@/routes/hr';
@@ -15,6 +25,15 @@ import { index as usersIndex } from '@/routes/users';
 type Props = {
     collapsed?: boolean;
 };
+
+const hrLinks = [
+    { label: 'Visão geral do RH', href: '/hr', icon: faHouse },
+    { label: 'Setores', href: '/hr/departments', icon: faBuilding },
+    { label: 'Cargos', href: '/hr/positions', icon: faIdBadge },
+    { label: 'Vagas', href: '/hr/jobs', icon: faBriefcase },
+    { label: 'Candidaturas', href: '/hr/applications', icon: faFileLines },
+    { label: 'Avaliações', href: '/hr/evaluations', icon: faClipboardCheck },
+];
 
 const closeMobileDrawer = () => {
     const drawer = document.getElementById('app-drawer') as HTMLInputElement;
@@ -27,6 +46,10 @@ const closeMobileDrawer = () => {
 export function AppSidebar({ collapsed = false }: Props) {
     const { isCurrentUrl } = useCurrentUrl();
     const { auth, companyBrand, name: applicationName } = usePage().props;
+    const [hrMenuOpen, setHrMenuOpen] = useState(false);
+    const [adminMenuOpen, setAdminMenuOpen] = useState(false);
+    const [virtualOfficeMenuOpen, setVirtualOfficeMenuOpen] = useState(false);
+    const [personnelMenuOpen, setPersonnelMenuOpen] = useState(false);
     const collapsedClass = collapsed ? 'lg:hidden' : '';
     const iconLinkClass = collapsed
         ? 'lg:tooltip lg:tooltip-right lg:justify-center'
@@ -92,77 +115,246 @@ export function AppSidebar({ collapsed = false }: Props) {
                         </Link>
                     </li>
 
-                    {auth.abilities.hrView && (
-                        <>
-                            <li className={`mt-4 menu-title ${collapsedClass}`}>
-                                Pessoas
-                            </li>
-                            <li>
-                                <Link
-                                    href={hrDashboard()}
-                                    onClick={closeMobileDrawer}
-                                    data-tip="Recursos Humanos"
-                                    className={`!flex min-h-14 items-center gap-3 ${iconLinkClass} ${isCurrentUrl(hrDashboard()) ? 'menu-active font-semibold' : ''}`}
-                                >
-                                    <FontAwesomeIcon
-                                        icon={faPeopleGroup}
-                                        className="block shrink-0 text-2xl"
-                                        fixedWidth
-                                    />
-                                    <span
-                                        className={`flex items-center leading-none ${collapsedClass}`}
-                                    >
-                                        Recursos Humanos
-                                    </span>
-                                </Link>
-                            </li>
-                        </>
-                    )}
-                    {auth.abilities.systemSettingsView && (
-                        <>
-                            <li className={`mt-4 menu-title ${collapsedClass}`}>
-                                Administração
-                            </li>
-                            <li>
-                                <Link
-                                    href={systemSettings()}
-                                    onClick={closeMobileDrawer}
-                                    data-tip="Configurações do sistema"
-                                    className={`!flex min-h-14 items-center gap-3 ${iconLinkClass} ${isCurrentUrl(systemSettings()) ? 'menu-active font-semibold' : ''}`}
-                                >
-                                    <FontAwesomeIcon
-                                        icon={faSliders}
-                                        className="block shrink-0 text-2xl"
-                                        fixedWidth
-                                    />
-                                    <span
-                                        className={`flex items-center leading-none ${collapsedClass}`}
-                                    >
-                                        Configurações do sistema
-                                    </span>
-                                </Link>
-                            </li>
-                        </>
-                    )}
-                    {auth.abilities.usersView && (
-                        <li>
-                            <Link
-                                href={usersIndex()}
-                                onClick={closeMobileDrawer}
-                                data-tip="Usuários"
-                                className={`!flex min-h-14 items-center gap-3 ${iconLinkClass} ${isCurrentUrl(usersIndex()) ? 'menu-active font-semibold' : ''}`}
+                    {auth.abilities.virtualOfficeView && (
+                        <li className="mt-4">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setVirtualOfficeMenuOpen((open) => !open)
+                                }
+                                aria-expanded={virtualOfficeMenuOpen}
+                                aria-controls="virtual-office-sidebar-submenu"
+                                data-tip="Escritório Virtual"
+                                className={`!flex min-h-14 w-full items-center gap-3 ${iconLinkClass} ${isCurrentUrl('/virtual-office', undefined, true) ? 'menu-active font-semibold' : ''}`}
                             >
                                 <FontAwesomeIcon
-                                    icon={faUsers}
+                                    icon={faLaptop}
                                     className="block shrink-0 text-2xl"
                                     fixedWidth
                                 />
                                 <span
                                     className={`flex items-center leading-none ${collapsedClass}`}
                                 >
-                                    Usuários
+                                    Escritório Virtual
                                 </span>
-                            </Link>
+                                <FontAwesomeIcon
+                                    icon={faChevronDown}
+                                    className={`ml-auto text-sm transition-transform duration-200 ${collapsedClass} ${virtualOfficeMenuOpen ? 'rotate-180' : ''}`}
+                                    fixedWidth
+                                />
+                            </button>
+                            {virtualOfficeMenuOpen && (
+                                <ul
+                                    id="virtual-office-sidebar-submenu"
+                                    className={`mt-1 ml-5 gap-1 border-l border-base-300 pl-3 ${collapsedClass}`}
+                                >
+                                    <li>
+                                        <Link
+                                            href="/virtual-office"
+                                            onClick={closeMobileDrawer}
+                                            className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl('/virtual-office') ? 'menu-active font-semibold' : ''}`}
+                                        >
+                                            <FontAwesomeIcon
+                                                icon={faGaugeHigh}
+                                                className="shrink-0"
+                                                fixedWidth
+                                            />
+                                            <span>Dashboard</span>
+                                        </Link>
+                                    </li>
+                                    {auth.abilities.tracksTime && (
+                                        <li>
+                                            <Link
+                                                href="/virtual-office/time-card"
+                                                onClick={closeMobileDrawer}
+                                                className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl('/virtual-office/time-card') ? 'menu-active font-semibold' : ''}`}
+                                            >
+                                                <FontAwesomeIcon
+                                                    icon={faClock}
+                                                    className="shrink-0"
+                                                    fixedWidth
+                                                />
+                                                <span>Cartão de Ponto</span>
+                                            </Link>
+                                        </li>
+                                    )}
+                                </ul>
+                            )}
+                        </li>
+                    )}
+
+                    {auth.abilities.hrView && (
+                        <li className="mt-4">
+                            <button
+                                type="button"
+                                onClick={() => setHrMenuOpen((open) => !open)}
+                                aria-expanded={hrMenuOpen}
+                                aria-controls="hr-sidebar-submenu"
+                                data-tip="Recursos Humanos"
+                                className={`!flex min-h-14 w-full items-center gap-3 ${iconLinkClass} ${isCurrentUrl(hrDashboard(), undefined, true) ? 'menu-active font-semibold' : ''}`}
+                            >
+                                <FontAwesomeIcon
+                                    icon={faPeopleGroup}
+                                    className="block shrink-0 text-2xl"
+                                    fixedWidth
+                                />
+                                <span
+                                    className={`flex items-center leading-none ${collapsedClass}`}
+                                >
+                                    Recursos Humanos
+                                </span>
+                                <FontAwesomeIcon
+                                    icon={faChevronDown}
+                                    className={`ml-auto text-sm transition-transform duration-200 ${collapsedClass} ${hrMenuOpen ? 'rotate-180' : ''}`}
+                                    fixedWidth
+                                />
+                            </button>
+                            {hrMenuOpen && (
+                                <ul
+                                    id="hr-sidebar-submenu"
+                                    className={`mt-1 ml-5 gap-1 border-l border-base-300 pl-3 ${collapsedClass}`}
+                                >
+                                    {hrLinks.map((item) => (
+                                        <li key={item.href}>
+                                            <Link
+                                                href={item.href}
+                                                onClick={closeMobileDrawer}
+                                                className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl(item.href) ? 'menu-active font-semibold' : ''}`}
+                                            >
+                                                <FontAwesomeIcon
+                                                    icon={item.icon}
+                                                    className="shrink-0"
+                                                    fixedWidth
+                                                />
+                                                <span>{item.label}</span>
+                                            </Link>
+                                        </li>
+                                    ))}
+                                </ul>
+                            )}
+                        </li>
+                    )}
+                    {auth.abilities.personnelView && (
+                        <li className="mt-4">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setPersonnelMenuOpen((open) => !open)
+                                }
+                                aria-expanded={personnelMenuOpen}
+                                aria-controls="personnel-sidebar-submenu"
+                                data-tip="Setor Pessoal"
+                                className={`!flex min-h-14 w-full items-center gap-3 ${iconLinkClass} ${isCurrentUrl('/personnel', undefined, true) ? 'menu-active font-semibold' : ''}`}
+                            >
+                                <FontAwesomeIcon
+                                    icon={faClock}
+                                    className="block shrink-0 text-2xl"
+                                    fixedWidth
+                                />
+                                <span
+                                    className={`flex items-center leading-none ${collapsedClass}`}
+                                >
+                                    Setor Pessoal
+                                </span>
+                                <FontAwesomeIcon
+                                    icon={faChevronDown}
+                                    className={`ml-auto text-sm transition-transform duration-200 ${collapsedClass} ${personnelMenuOpen ? 'rotate-180' : ''}`}
+                                    fixedWidth
+                                />
+                            </button>
+                            {personnelMenuOpen && (
+                                <ul
+                                    id="personnel-sidebar-submenu"
+                                    className={`mt-1 ml-5 gap-1 border-l border-base-300 pl-3 ${collapsedClass}`}
+                                >
+                                    <li>
+                                        <Link
+                                            href="/personnel/time-card-settings"
+                                            onClick={closeMobileDrawer}
+                                            className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl('/personnel/time-card-settings') ? 'menu-active font-semibold' : ''}`}
+                                        >
+                                            <FontAwesomeIcon
+                                                icon={faSliders}
+                                                className="shrink-0"
+                                                fixedWidth
+                                            />
+                                            <span>Config. cartão de ponto</span>
+                                        </Link>
+                                    </li>
+                                </ul>
+                            )}
+                        </li>
+                    )}
+                    {(auth.abilities.systemSettingsView ||
+                        auth.abilities.usersView) && (
+                        <li className="mt-4">
+                            <button
+                                type="button"
+                                onClick={() =>
+                                    setAdminMenuOpen((open) => !open)
+                                }
+                                aria-expanded={adminMenuOpen}
+                                aria-controls="admin-sidebar-submenu"
+                                data-tip="Administração"
+                                className={`!flex min-h-14 w-full items-center gap-3 ${iconLinkClass} ${isCurrentUrl(systemSettings()) || isCurrentUrl(usersIndex()) ? 'menu-active font-semibold' : ''}`}
+                            >
+                                <FontAwesomeIcon
+                                    icon={faShieldHalved}
+                                    className="block shrink-0 text-2xl"
+                                    fixedWidth
+                                />
+                                <span
+                                    className={`flex items-center leading-none ${collapsedClass}`}
+                                >
+                                    Administração
+                                </span>
+                                <FontAwesomeIcon
+                                    icon={faChevronDown}
+                                    className={`ml-auto text-sm transition-transform duration-200 ${collapsedClass} ${adminMenuOpen ? 'rotate-180' : ''}`}
+                                    fixedWidth
+                                />
+                            </button>
+                            {adminMenuOpen && (
+                                <ul
+                                    id="admin-sidebar-submenu"
+                                    className={`mt-1 ml-5 gap-1 border-l border-base-300 pl-3 ${collapsedClass}`}
+                                >
+                                    {auth.abilities.systemSettingsView && (
+                                        <li>
+                                            <Link
+                                                href={systemSettings()}
+                                                onClick={closeMobileDrawer}
+                                                className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl(systemSettings()) ? 'menu-active font-semibold' : ''}`}
+                                            >
+                                                <FontAwesomeIcon
+                                                    icon={faSliders}
+                                                    className="shrink-0"
+                                                    fixedWidth
+                                                />
+                                                <span>
+                                                    Configurações do sistema
+                                                </span>
+                                            </Link>
+                                        </li>
+                                    )}
+                                    {auth.abilities.usersView && (
+                                        <li>
+                                            <Link
+                                                href={usersIndex()}
+                                                onClick={closeMobileDrawer}
+                                                className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl(usersIndex()) ? 'menu-active font-semibold' : ''}`}
+                                            >
+                                                <FontAwesomeIcon
+                                                    icon={faUsers}
+                                                    className="shrink-0"
+                                                    fixedWidth
+                                                />
+                                                <span>Usuários</span>
+                                            </Link>
+                                        </li>
+                                    )}
+                                </ul>
+                            )}
                         </li>
                     )}
                 </ul>

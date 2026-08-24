@@ -26,7 +26,7 @@ use Spatie\Permission\Traits\HasRoles;
  * @property Carbon|null $updated_at
  */
 #[Fillable([
-    'name', 'email', 'password', 'workos_id', 'avatar', 'cpf', 'birth_date',
+    'name', 'email', 'password', 'tracks_time', 'workos_id', 'avatar', 'cpf', 'birth_date',
     'phone', 'gender', 'postal_code', 'address', 'address_number',
     'address_complement', 'district', 'city', 'state',
 ])]
@@ -35,6 +35,10 @@ class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, Notifiable;
+
+    protected $attributes = [
+        'tracks_time' => false,
+    ];
 
     /**
      * Get the attributes that should be cast.
@@ -47,6 +51,7 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'birth_date' => 'date:Y-m-d',
             'password' => 'hashed',
+            'tracks_time' => 'boolean',
         ];
     }
 
@@ -58,6 +63,41 @@ class User extends Authenticatable
     public function candidateProfile(): HasOne
     {
         return $this->hasOne(CandidateProfile::class);
+    }
+
+    public function employeeProfile(): HasOne
+    {
+        return $this->hasOne(EmployeeProfile::class);
+    }
+
+    public function workSchedules(): HasMany
+    {
+        return $this->hasMany(EmployeeWorkSchedule::class);
+    }
+
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
+
+    public function timeAdjustmentRequests(): HasMany
+    {
+        return $this->hasMany(TimeAdjustmentRequest::class);
+    }
+
+    public function hourBankTransactions(): HasMany
+    {
+        return $this->hasMany(HourBankTransaction::class);
+    }
+
+    public function vacationPeriods(): HasMany
+    {
+        return $this->hasMany(VacationPeriod::class);
+    }
+
+    public function workScheduleAssignments(): HasMany
+    {
+        return $this->hasMany(WorkScheduleAssignment::class);
     }
 
     public function applications(): HasMany

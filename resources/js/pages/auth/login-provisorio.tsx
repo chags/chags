@@ -19,11 +19,16 @@ export default function LoginProvisorio() {
                 <div className="card w-full max-w-md border border-base-300 bg-base-100 shadow-xl">
                     <div className="card-body p-8">
                         <div className="mb-4 flex items-center gap-3">
-                            <div className="badge badge-primary badge-lg">Local</div>
+                            <div className="badge badge-lg badge-primary">
+                                Local
+                            </div>
                             <div>
-                                <h1 className="text-2xl font-semibold">Login provisório</h1>
+                                <h1 className="text-2xl font-semibold">
+                                    Login provisório
+                                </h1>
                                 <p className="text-sm text-base-content/70">
-                                    Acesso local temporário enquanto o WorkOS não estiver configurado.
+                                    Acesso local temporário enquanto o WorkOS
+                                    não estiver configurado.
                                 </p>
                             </div>
                         </div>
@@ -37,12 +42,18 @@ export default function LoginProvisorio() {
                                     id="email"
                                     type="email"
                                     value={data.email}
-                                    onChange={(e) => setData('email', e.target.value)}
-                                    className="input input-bordered w-full bg-base-100 text-base-content"
+                                    onChange={(e) =>
+                                        setData('email', e.target.value)
+                                    }
+                                    className="input-bordered input w-full bg-base-100 text-base-content"
                                     placeholder="seu@email.com"
                                     required
                                 />
-                                {errors.email && <p className="mt-1 text-sm text-error">{errors.email}</p>}
+                                {errors.email && (
+                                    <p className="mt-1 text-sm text-error">
+                                        {errors.email}
+                                    </p>
+                                )}
                             </div>
 
                             <div className="form-control">
@@ -53,14 +64,20 @@ export default function LoginProvisorio() {
                                     id="password"
                                     type="password"
                                     value={data.password}
-                                    onChange={(e) => setData('password', e.target.value)}
-                                    className="input input-bordered w-full bg-base-100 text-base-content"
+                                    onChange={(e) =>
+                                        setData('password', e.target.value)
+                                    }
+                                    className="input-bordered input w-full bg-base-100 text-base-content"
                                     placeholder="••••••••"
                                     required
                                 />
                             </div>
 
-                            <button type="submit" disabled={processing} className="btn btn-primary w-full">
+                            <button
+                                type="submit"
+                                disabled={processing}
+                                className="btn w-full btn-primary"
+                            >
                                 {processing ? 'Entrando...' : 'Entrar'}
                             </button>
                         </form>

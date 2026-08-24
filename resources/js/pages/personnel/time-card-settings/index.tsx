@@ -1,0 +1,693 @@
+import { Head, router } from '@inertiajs/react';
+import { CalendarClock, Pencil, Plus, UsersRound } from 'lucide-react';
+import { useRef, useState } from 'react';
+import type { FormEvent, ReactNode } from 'react';
+
+type Day = {
+    day_index: number;
+    label: string;
+    is_workday: boolean;
+    start_time: string | null;
+    break_start_time: string | null;
+    break_end_time: string | null;
+    end_time: string | null;
+    expected_minutes: number;
+};
+type Group = {
+    id: number;
+    name: string;
+    description: string | null;
+    schedule_type: string;
+    weekly_minutes: number;
+    entry_tolerance_minutes: number;
+    daily_tolerance_minutes: number;
+    operational_window_minutes: number;
+    daily_overtime_limit_minutes: number;
+    requires_overtime_approval: boolean;
+    cycle_start_date: string | null;
+    active: boolean;
+    days: Day[];
+    assignments_count: number;
+};
+type User = {
+    id: number;
+    name: string;
+    email: string;
+    group: { id: number; name: string; schedule_type: string } | null;
+};
+type Props = {
+    groups: Group[];
+    users: User[];
+    metrics: {
+        activeGroups: number;
+        tracksTimeUsers: number;
+        unassignedUsers: number;
+    };
+};
+
+const week = [
+    'Segunda',
+    'Terça',
+    'Quarta',
+    'Quinta',
+    'Sexta',
+    'Sábado',
+    'Domingo',
+];
+const token = () =>
+    document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+        ?.content ?? '';
+const normalizeTime = (value: string | null) =>
+    value ? value.slice(0, 5) : null;
+const normalizeDays = (days: Day[]): Day[] =>
+    days.map((day) => ({
+        ...day,
+        start_time: normalizeTime(day.start_time),
+        break_start_time: normalizeTime(day.break_start_time),
+        break_end_time: normalizeTime(day.break_end_time),
+        end_time: normalizeTime(day.end_time),
+    }));
+const defaultDays = (type: string): Day[] => {
+    if (type === '12x36') {
+        return [
+            {
+                day_index: 1,
+                label: 'Trabalho',
+                is_workday: true,
+                start_time: '07:00',
+                break_start_time: '12:00',
+                break_end_time: '13:00',
+                end_time: '19:00',
+                expected_minutes: 660,
+            },
+            {
+                day_index: 2,
+                label: 'Descanso',
+                is_workday: false,
+                start_time: null,
+                break_start_time: null,
+                break_end_time: null,
+                end_time: null,
+                expected_minutes: 0,
+            },
+        ];
+    }
+
+    return week.map((label, index) => ({
+        day_index: index + 1,
+        label,
+        is_workday: index < (type === '6x1' ? 6 : 5),
+        start_time: '08:00',
+        break_start_time: '12:00',
+        break_end_time: '13:00',
+        end_time: '17:00',
+        expected_minutes: index < (type === '6x1' ? 6 : 5) ? 480 : 0,
+    }));
+};
+
+export default function TimeCardSettings({ groups, users, metrics }: Props) {
+    const dialog = useRef<HTMLDialogElement>(null);
+    const [editing, setEditing] = useState<Group | null>(null);
+    const [type, setType] = useState('5x2');
+    const [days, setDays] = useState<Day[]>(defaultDays('5x2'));
+    const [busy, setBusy] = useState(false);
+    const [message, setMessage] = useState('');
+    const open = (group: Group | null = null) => {
+        setEditing(group);
+        setType(group?.schedule_type ?? '5x2');
+        setDays(
+            group?.days
+                ? normalizeDays(group.days)
+                : defaultDays(group?.schedule_type ?? '5x2'),
+        );
+        setMessage('');
+        dialog.current?.showModal();
+    };
+    const request = async (url: string, method: string, body: unknown) => {
+        const response = await fetch(url, {
+            method,
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': token(),
+            },
+            body: JSON.stringify(body),
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(
+                data.message ??
+                    Object.values(data.errors ?? {})
+                        .flat()
+                        .join(' '),
+            );
+        }
+
+        return data;
+    };
+    const save = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setBusy(true);
+        setMessage('');
+        const values = Object.fromEntries(new FormData(event.currentTarget));
+
+        try {
+            await request(
+                editing
+                    ? `/personnel/time-card-settings/groups/${editing.id}`
+                    : '/personnel/time-card-settings/groups',
+                editing ? 'PUT' : 'POST',
+                {
+                    ...values,
+                    schedule_type: type,
+                    weekly_minutes: Number(values.weekly_minutes),
+                    entry_tolerance_minutes: Number(
+                        values.entry_tolerance_minutes,
+                    ),
+                    daily_tolerance_minutes: Number(
+                        values.daily_tolerance_minutes,
+                    ),
+                    operational_window_minutes: Number(
+                        values.operational_window_minutes,
+                    ),
+                    daily_overtime_limit_minutes: Number(
+                        values.daily_overtime_limit_minutes,
+                    ),
+                    requires_overtime_approval:
+                        values.requires_overtime_approval === '1',
+                    active: values.active === '1',
+                    cycle_start_date: values.cycle_start_date || null,
+                    days,
+                },
+            );
+            dialog.current?.close();
+            router.reload();
+        } catch (error) {
+            setMessage(
+                error instanceof Error ? error.message : 'Erro ao salvar.',
+            );
+        } finally {
+            setBusy(false);
+        }
+    };
+    const assign = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setBusy(true);
+        setMessage('');
+        const values = Object.fromEntries(new FormData(event.currentTarget));
+
+        try {
+            const data = await request(
+                '/personnel/time-card-settings/assignments',
+                'POST',
+                values,
+            );
+            setMessage(data.message);
+            router.reload();
+        } catch (error) {
+            setMessage(
+                error instanceof Error ? error.message : 'Erro ao vincular.',
+            );
+        } finally {
+            setBusy(false);
+        }
+    };
+
+    return (
+        <>
+            <Head title="Configuração do Cartão de Ponto" />
+            <main className="app-page gap-6">
+                <section className="flex flex-wrap items-end justify-between gap-4">
+                    <div>
+                        <p className="text-sm font-semibold text-primary">
+                            Setor Pessoal
+                        </p>
+                        <h1 className="mt-1 text-3xl font-bold">
+                            Configuração do Cartão de Ponto
+                        </h1>
+                        <p className="mt-2 text-base-content/60">
+                            Crie grupos, defina escalas e aplique as regras aos
+                            usuários.
+                        </p>
+                    </div>
+                    <button className="btn btn-primary" onClick={() => open()}>
+                        <Plus className="size-4" />
+                        Novo grupo
+                    </button>
+                </section>
+                <section className="grid gap-4 md:grid-cols-3">
+                    <Metric
+                        label="Grupos ativos"
+                        value={metrics.activeGroups}
+                        icon={CalendarClock}
+                    />
+                    <Metric
+                        label="Usuários que batem ponto"
+                        value={metrics.tracksTimeUsers}
+                        icon={UsersRound}
+                    />
+                    <Metric
+                        label="Sem grupo definido"
+                        value={metrics.unassignedUsers}
+                        icon={UsersRound}
+                    />
+                </section>
+                {message && <div className="alert alert-info">{message}</div>}
+                <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+                    <div className="card border border-base-300 bg-base-100 shadow-sm">
+                        <div className="card-body">
+                            <h2 className="card-title">Grupos de jornada</h2>
+                            <div className="overflow-x-auto">
+                                <table className="table table-zebra">
+                                    <thead>
+                                        <tr>
+                                            <th>Grupo</th>
+                                            <th>Escala</th>
+                                            <th>Carga</th>
+                                            <th>Usuários</th>
+                                            <th />
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {groups.map((group) => (
+                                            <tr key={group.id}>
+                                                <td>
+                                                    <strong>
+                                                        {group.name}
+                                                    </strong>
+                                                    <div className="text-xs text-base-content/55">
+                                                        {group.description}
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <span className="badge badge-outline badge-primary">
+                                                        {group.schedule_type}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    {Math.floor(
+                                                        group.weekly_minutes /
+                                                            60,
+                                                    )}
+                                                    h semanais
+                                                </td>
+                                                <td>
+                                                    {group.assignments_count}
+                                                </td>
+                                                <td>
+                                                    <button
+                                                        className="btn btn-square btn-ghost btn-sm"
+                                                        onClick={() =>
+                                                            open(group)
+                                                        }
+                                                    >
+                                                        <Pencil className="size-4" />
+                                                    </button>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                    <form
+                        onSubmit={assign}
+                        className="card h-fit border border-base-300 bg-base-100 shadow-sm"
+                    >
+                        <div className="card-body">
+                            <h2 className="card-title">Vincular usuário</h2>
+                            <label className="fieldset">
+                                <span className="fieldset-legend">Usuário</span>
+                                <select
+                                    name="user_id"
+                                    className="select w-full"
+                                    required
+                                >
+                                    <option value="">Selecione</option>
+                                    {users.map((user) => (
+                                        <option key={user.id} value={user.id}>
+                                            {user.name}
+                                            {user.group
+                                                ? ` — ${user.group.name} (${user.group.schedule_type})`
+                                                : ''}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label className="fieldset">
+                                <span className="fieldset-legend">Grupo</span>
+                                <select
+                                    name="work_schedule_group_id"
+                                    className="select w-full"
+                                    required
+                                >
+                                    <option value="">Selecione</option>
+                                    {groups
+                                        .filter((g) => g.active)
+                                        .map((group) => (
+                                            <option
+                                                key={group.id}
+                                                value={group.id}
+                                            >
+                                                {group.name} (
+                                                {group.schedule_type})
+                                            </option>
+                                        ))}
+                                </select>
+                            </label>
+                            <label className="fieldset">
+                                <span className="fieldset-legend">
+                                    Válido a partir de
+                                </span>
+                                <input
+                                    name="valid_from"
+                                    type="date"
+                                    className="input w-full"
+                                    required
+                                    defaultValue={new Date()
+                                        .toISOString()
+                                        .slice(0, 10)}
+                                />
+                            </label>
+                            <button disabled={busy} className="btn btn-primary">
+                                Aplicar grupo
+                            </button>
+                        </div>
+                    </form>
+                </section>
+            </main>
+            <dialog ref={dialog} className="modal">
+                <div className="modal-box max-w-5xl">
+                    <form onSubmit={save} className="space-y-5">
+                        <h2 className="text-xl font-bold">
+                            {editing ? 'Editar grupo' : 'Novo grupo de jornada'}
+                        </h2>
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <Field label="Nome">
+                                <input
+                                    name="name"
+                                    className="input w-full"
+                                    required
+                                    defaultValue={editing?.name}
+                                />
+                            </Field>
+                            <Field label="Tipo de escala">
+                                <select
+                                    name="schedule_type"
+                                    className="select w-full"
+                                    value={type}
+                                    onChange={(e) => {
+                                        setType(e.target.value);
+                                        setDays(defaultDays(e.target.value));
+                                    }}
+                                >
+                                    <option value="5x2">5x2 Comercial</option>
+                                    <option value="6x1">6x1</option>
+                                    <option value="12x36">12x36</option>
+                                    <option value="custom">
+                                        Personalizada
+                                    </option>
+                                </select>
+                            </Field>
+                            <Field label="Carga semanal (min)">
+                                <input
+                                    name="weekly_minutes"
+                                    type="number"
+                                    className="input w-full"
+                                    defaultValue={
+                                        editing?.weekly_minutes ?? 2640
+                                    }
+                                />
+                            </Field>
+                            <Field label="Tolerância por marcação">
+                                <input
+                                    name="entry_tolerance_minutes"
+                                    type="number"
+                                    className="input w-full"
+                                    defaultValue={
+                                        editing?.entry_tolerance_minutes ?? 5
+                                    }
+                                />
+                            </Field>
+                            <Field label="Tolerância diária">
+                                <input
+                                    name="daily_tolerance_minutes"
+                                    type="number"
+                                    className="input w-full"
+                                    defaultValue={
+                                        editing?.daily_tolerance_minutes ?? 10
+                                    }
+                                />
+                            </Field>
+                            <Field label="Janela operacional">
+                                <input
+                                    name="operational_window_minutes"
+                                    type="number"
+                                    className="input w-full"
+                                    defaultValue={
+                                        editing?.operational_window_minutes ??
+                                        10
+                                    }
+                                />
+                            </Field>
+                            <Field label="Limite extra diário (min)">
+                                <input
+                                    name="daily_overtime_limit_minutes"
+                                    type="number"
+                                    className="input w-full"
+                                    defaultValue={
+                                        editing?.daily_overtime_limit_minutes ??
+                                        120
+                                    }
+                                />
+                            </Field>
+                            {type === '12x36' && (
+                                <Field label="Início do ciclo">
+                                    <input
+                                        name="cycle_start_date"
+                                        type="date"
+                                        className="input w-full"
+                                        required
+                                        defaultValue={editing?.cycle_start_date?.slice(
+                                            0,
+                                            10,
+                                        )}
+                                    />
+                                </Field>
+                            )}
+                            <Field label="Descrição">
+                                <input
+                                    name="description"
+                                    className="input w-full"
+                                    defaultValue={editing?.description ?? ''}
+                                />
+                            </Field>
+                        </div>
+                        <div>
+                            <h3 className="font-bold">Dias da escala</h3>
+                            <div className="mt-2 overflow-x-auto">
+                                <table className="table table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Dia</th>
+                                            <th>Trabalha</th>
+                                            <th>Entrada</th>
+                                            <th>Intervalo</th>
+                                            <th>Retorno</th>
+                                            <th>Saída</th>
+                                            <th>Minutos</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {days.map((day, index) => (
+                                            <tr key={day.day_index}>
+                                                <td>{day.label}</td>
+                                                <td>
+                                                    <input
+                                                        type="checkbox"
+                                                        className="checkbox checkbox-sm"
+                                                        checked={day.is_workday}
+                                                        onChange={(e) =>
+                                                            setDays((current) =>
+                                                                current.map(
+                                                                    (d, i) =>
+                                                                        i ===
+                                                                        index
+                                                                            ? {
+                                                                                  ...d,
+                                                                                  is_workday:
+                                                                                      e
+                                                                                          .target
+                                                                                          .checked,
+                                                                                  expected_minutes:
+                                                                                      e
+                                                                                          .target
+                                                                                          .checked
+                                                                                          ? d.expected_minutes ||
+                                                                                            480
+                                                                                          : 0,
+                                                                              }
+                                                                            : d,
+                                                                ),
+                                                            )
+                                                        }
+                                                    />
+                                                </td>
+                                                {(
+                                                    [
+                                                        'start_time',
+                                                        'break_start_time',
+                                                        'break_end_time',
+                                                        'end_time',
+                                                    ] as const
+                                                ).map((key) => (
+                                                    <td key={key}>
+                                                        <input
+                                                            type="time"
+                                                            className="input w-28 input-sm"
+                                                            disabled={
+                                                                !day.is_workday
+                                                            }
+                                                            value={
+                                                                day[key] ?? ''
+                                                            }
+                                                            onChange={(e) =>
+                                                                setDays(
+                                                                    (current) =>
+                                                                        current.map(
+                                                                            (
+                                                                                d,
+                                                                                i,
+                                                                            ) =>
+                                                                                i ===
+                                                                                index
+                                                                                    ? {
+                                                                                          ...d,
+                                                                                          [key]:
+                                                                                              e
+                                                                                                  .target
+                                                                                                  .value ||
+                                                                                              null,
+                                                                                      }
+                                                                                    : d,
+                                                                        ),
+                                                                )
+                                                            }
+                                                        />
+                                                    </td>
+                                                ))}
+                                                <td>
+                                                    <input
+                                                        type="number"
+                                                        className="input w-24 input-sm"
+                                                        disabled={
+                                                            !day.is_workday
+                                                        }
+                                                        value={
+                                                            day.expected_minutes
+                                                        }
+                                                        onChange={(e) =>
+                                                            setDays((current) =>
+                                                                current.map(
+                                                                    (d, i) =>
+                                                                        i ===
+                                                                        index
+                                                                            ? {
+                                                                                  ...d,
+                                                                                  expected_minutes:
+                                                                                      Number(
+                                                                                          e
+                                                                                              .target
+                                                                                              .value,
+                                                                                      ),
+                                                                              }
+                                                                            : d,
+                                                                ),
+                                                            )
+                                                        }
+                                                    />
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                        <div className="flex flex-wrap gap-5">
+                            <label className="label cursor-pointer gap-2">
+                                <input
+                                    name="requires_overtime_approval"
+                                    type="checkbox"
+                                    value="1"
+                                    className="checkbox"
+                                    defaultChecked={
+                                        editing?.requires_overtime_approval ??
+                                        true
+                                    }
+                                />
+                                Exigir aprovação de hora extra
+                            </label>
+                            <label className="label cursor-pointer gap-2">
+                                <input
+                                    name="active"
+                                    type="checkbox"
+                                    value="1"
+                                    className="checkbox"
+                                    defaultChecked={editing?.active ?? true}
+                                />
+                                Grupo ativo
+                            </label>
+                        </div>
+                        {message && (
+                            <div className="alert alert-error">{message}</div>
+                        )}
+                        <div className="modal-action">
+                            <button
+                                type="button"
+                                className="btn"
+                                onClick={() => dialog.current?.close()}
+                            >
+                                Cancelar
+                            </button>
+                            <button disabled={busy} className="btn btn-primary">
+                                Salvar grupo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+                <form method="dialog" className="modal-backdrop">
+                    <button>Fechar</button>
+                </form>
+            </dialog>
+        </>
+    );
+}
+function Field({ label, children }: { label: string; children: ReactNode }) {
+    return (
+        <label className="fieldset">
+            <span className="fieldset-legend">{label}</span>
+            {children}
+        </label>
+    );
+}
+function Metric({
+    label,
+    value,
+    icon: Icon,
+}: {
+    label: string;
+    value: number;
+    icon: typeof CalendarClock;
+}) {
+    return (
+        <div className="stat rounded-box border border-base-300 bg-base-100 shadow-sm">
+            <div className="stat-figure text-primary">
+                <Icon className="size-7" />
+            </div>
+            <div className="stat-title">{label}</div>
+            <div className="stat-value text-primary">{value}</div>
+        </div>
+    );
+}

@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\AiProviderSetting;
+use App\Models\ApplicationSetting;
 use App\Models\Company;
 use App\Models\TurnstileSetting;
 use App\Models\User;
@@ -34,6 +35,23 @@ test('an administrator can access system settings', function () {
     $user->assignRole('administrador');
 
     $this->actingAs($user)->get('/settings/system')->assertOk();
+});
+
+test('an administrator can persist the global theme', function () {
+    $user = User::factory()->create();
+    $user->assignRole('administrador');
+
+    $this->actingAs($user)
+        ->putJson('/settings/system/appearance', ['theme' => 'forest'])
+        ->assertOk()
+        ->assertJsonPath('theme', 'forest');
+
+    expect(ApplicationSetting::query()->where('key', 'theme')->value('value'))
+        ->toBe('forest');
+
+    $this->get('/settings/system')
+        ->assertOk()
+        ->assertSee('data-theme="forest"', false);
 });
 
 test('an administrator can configure global seo and tracking tags', function () {

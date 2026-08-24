@@ -4,6 +4,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Link, router, usePage } from '@inertiajs/react';
 import { Bell, Globe, LogOut, Menu, Settings, UserRound } from 'lucide-react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
+import { TimePunchModal } from '@/components/time-punch-modal';
 import { useInitials } from '@/hooks/use-initials';
 import { home, logout } from '@/routes';
 import { edit } from '@/routes/profile';
@@ -86,6 +87,7 @@ export function AppHeader({
                 </div>
 
                 <div className="navbar-end gap-1">
+                    {auth.abilities.tracksTime && <TimePunchModal />}
                     <a
                         href={home().url}
                         target="_blank"

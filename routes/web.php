@@ -16,6 +16,11 @@ use App\Http\Controllers\Hr\InterviewScheduleController;
 use App\Http\Controllers\Hr\JobController;
 use App\Http\Controllers\Hr\JobImageController;
 use App\Http\Controllers\Hr\PositionController;
+use App\Http\Controllers\Personnel\TimeCardSettingsController;
+use App\Http\Controllers\VirtualOffice\DashboardController as VirtualOfficeDashboardController;
+use App\Http\Controllers\VirtualOffice\TimeAdjustmentRequestController;
+use App\Http\Controllers\VirtualOffice\TimeCardController;
+use App\Http\Controllers\VirtualOffice\TimePunchController;
 use Illuminate\Support\Facades\Route;
 use Laravel\WorkOS\Http\Middleware\ValidateSessionWithWorkOS;
 
@@ -65,6 +70,33 @@ Route::middleware($authenticatedMiddleware)->group(function () {
     Route::resource('hr/positions', PositionController::class)->only(['index', 'store', 'update', 'destroy'])->names('hr.positions');
     Route::get('hr/evaluations', [InterviewScheduleController::class, 'index'])->name('hr.evaluations.index');
     Route::post('hr/evaluations', [InterviewScheduleController::class, 'store'])->name('hr.evaluations.store');
+
+    Route::prefix('virtual-office')
+        ->name('virtual-office.')
+        ->middleware('permission:intranet.access')
+        ->group(function () {
+            Route::get('/', VirtualOfficeDashboardController::class)->name('dashboard');
+            Route::get('time-card', [TimeCardController::class, 'index'])
+                ->middleware('permission:time-records.view-own')
+                ->name('time-card.index');
+            Route::get('time-punch', [TimePunchController::class, 'show'])
+                ->middleware('permission:time-records.view-own')
+                ->name('time-punch.show');
+            Route::post('time-punch', [TimePunchController::class, 'store'])
+                ->middleware(['permission:time-records.view-own', 'throttle:10,1'])
+                ->name('time-punch.store');
+            Route::post('time-adjustments', [TimeAdjustmentRequestController::class, 'store'])
+                ->middleware('permission:time-records.request-adjustment')
+                ->name('time-adjustments.store');
+        });
+
+    Route::prefix('personnel')->name('personnel.')->middleware('permission:time-records.manage')->group(function () {
+        Route::get('time-card-settings', [TimeCardSettingsController::class, 'index'])->name('time-card-settings.index');
+        Route::post('time-card-settings/groups', [TimeCardSettingsController::class, 'store'])->name('time-card-settings.groups.store');
+        Route::put('time-card-settings/groups/{group}', [TimeCardSettingsController::class, 'update'])->name('time-card-settings.groups.update');
+        Route::delete('time-card-settings/groups/{group}', [TimeCardSettingsController::class, 'destroy'])->name('time-card-settings.groups.destroy');
+        Route::post('time-card-settings/assignments', [TimeCardSettingsController::class, 'assign'])->name('time-card-settings.assignments.store');
+    });
 });
 
 require __DIR__.'/settings.php';

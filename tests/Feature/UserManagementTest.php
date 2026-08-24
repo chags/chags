@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\User;
+use App\Models\WorkScheduleGroup;
 use Database\Seeders\SuperAdminSeeder;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\UploadedFile;
@@ -39,6 +40,41 @@ test('administrators can access user management and create administrators', func
     expect($user->hasRole('administrador'))->toBeTrue()
         ->and($user->postal_code)->toBe('01001000')
         ->and($user->city)->toBe('São Paulo');
+});
+
+test('a time tracking user must have an active work schedule', function () {
+    $administrator = User::factory()->create();
+    $administrator->assignRole('administrador');
+    $user = User::factory()->create();
+    $user->assignRole('colaborador');
+    $group = WorkScheduleGroup::query()->create([
+        'name' => 'Comercial', 'schedule_type' => '6x1', 'weekly_minutes' => 2640,
+        'entry_tolerance_minutes' => 10, 'daily_tolerance_minutes' => 10,
+        'operational_window_minutes' => 10, 'daily_overtime_limit_minutes' => 120,
+        'requires_overtime_approval' => true, 'active' => true,
+    ]);
+
+    $payload = [
+        'name' => $user->name,
+        'email' => $user->email,
+        'role' => 'colaborador',
+        'tracks_time' => true,
+    ];
+
+    $this->actingAs($administrator)
+        ->putJson("/users/{$user->id}", $payload)
+        ->assertJsonValidationErrors('work_schedule_group_id');
+
+    $this->actingAs($administrator)
+        ->putJson("/users/{$user->id}", [...$payload, 'work_schedule_group_id' => $group->id])
+        ->assertOk();
+
+    expect($user->fresh()->tracks_time)->toBeTrue();
+    $this->assertDatabaseHas('work_schedule_assignments', [
+        'user_id' => $user->id,
+        'work_schedule_group_id' => $group->id,
+        'active' => true,
+    ]);
 });
 
 test('a super admin can upload a user photo converted to webp', function () {

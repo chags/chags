@@ -4,7 +4,7 @@ import { faRightToBracket } from '@fortawesome/free-solid-svg-icons/faRightToBra
 import { faSun } from '@fortawesome/free-solid-svg-icons/faSun';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Link, usePage } from '@inertiajs/react';
-import { type ReactNode, useEffect } from 'react';
+import type { ReactNode } from 'react';
 import { useAppearance } from '@/hooks/use-appearance';
 import { dashboard } from '@/routes';
 
@@ -22,10 +22,6 @@ export function PublicSiteShell({ children }: { children: ReactNode }) {
             ? 'Minhas candidaturas'
             : 'Intranet'
         : 'Área do candidato';
-
-    useEffect(() => {
-        document.documentElement.dataset.theme = resolvedAppearance;
-    }, [resolvedAppearance]);
 
     return (
         <div className="min-h-screen bg-base-100 text-base-content">

@@ -33,6 +33,9 @@ export type Auth = {
         systemSettingsView: boolean;
         usersView: boolean;
         hrView: boolean;
+        virtualOfficeView: boolean;
+        tracksTime: boolean;
+        personnelView: boolean;
     };
 };
 

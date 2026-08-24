@@ -47,7 +47,18 @@ type CandidateApplication = {
         state: string | null;
     };
     timeline: TimelineItem[];
-    interviews: {id:number;stage:string;starts_at:string;ends_at:string;timezone:string;format:string;location:string|null;meeting_url:string|null;instructions:string|null;response:string}[];
+    interviews: {
+        id: number;
+        stage: string;
+        starts_at: string;
+        ends_at: string;
+        timezone: string;
+        format: string;
+        location: string | null;
+        meeting_url: string | null;
+        instructions: string | null;
+        response: string;
+    }[];
 };
 
 export default function CandidateApplicationShow({
@@ -179,7 +190,7 @@ export default function CandidateApplicationShow({
                                                         </span>
                                                     )}
                                                     {blocked && (
-                                                        <span className="badge badge-sm badge-ghost">
+                                                        <span className="badge badge-ghost badge-sm">
                                                             Etapa encerrada
                                                         </span>
                                                     )}
@@ -235,7 +246,81 @@ export default function CandidateApplicationShow({
                         </div>
                     </section>
                     {application.interviews.map((interview) => (
-                        <section key={interview.id} className="card mt-6 border border-primary/30 bg-base-100 shadow-md"><div className="card-body"><h2 className="card-title">{interview.stage}</h2><p>{new Date(interview.starts_at).toLocaleString('pt-BR')} · {interview.timezone}</p><p>{interview.format === 'online' ? 'Entrevista online' : interview.location}</p>{interview.instructions&&<p className="text-sm">{interview.instructions}</p>}<div className="card-actions mt-3">{interview.meeting_url&&<a className="btn btn-primary btn-sm" href={interview.meeting_url} target="_blank" rel="noreferrer">Entrar na reunião</a>}{interview.response==='pending'&&<><button className="btn btn-success btn-sm" onClick={()=>router.post(`/candidato/entrevistas/${interview.id}/responder`,{response:'accepted'})}>Confirmar presença</button><button className="btn btn-outline btn-sm" onClick={()=>{const reason=prompt('Informe o motivo e uma sugestão de horário:');if(reason)router.post(`/candidato/entrevistas/${interview.id}/responder`,{response:'reschedule_requested',reason})}}>Solicitar reagendamento</button></>}</div></div></section>
+                        <section
+                            key={interview.id}
+                            className="card mt-6 border border-primary/30 bg-base-100 shadow-md"
+                        >
+                            <div className="card-body">
+                                <h2 className="card-title">
+                                    {interview.stage}
+                                </h2>
+                                <p>
+                                    {new Date(
+                                        interview.starts_at,
+                                    ).toLocaleString('pt-BR')}{' '}
+                                    · {interview.timezone}
+                                </p>
+                                <p>
+                                    {interview.format === 'online'
+                                        ? 'Entrevista online'
+                                        : interview.location}
+                                </p>
+                                {interview.instructions && (
+                                    <p className="text-sm">
+                                        {interview.instructions}
+                                    </p>
+                                )}
+                                <div className="mt-3 card-actions">
+                                    {interview.meeting_url && (
+                                        <a
+                                            className="btn btn-primary btn-sm"
+                                            href={interview.meeting_url}
+                                            target="_blank"
+                                            rel="noreferrer"
+                                        >
+                                            Entrar na reunião
+                                        </a>
+                                    )}
+                                    {interview.response === 'pending' && (
+                                        <>
+                                            <button
+                                                className="btn btn-sm btn-success"
+                                                onClick={() =>
+                                                    router.post(
+                                                        `/candidato/entrevistas/${interview.id}/responder`,
+                                                        {
+                                                            response:
+                                                                'accepted',
+                                                        },
+                                                    )
+                                                }
+                                            >
+                                                Confirmar presença
+                                            </button>
+                                            <button
+                                                className="btn btn-outline btn-sm"
+                                                onClick={() => {
+                                                    const reason = prompt(
+                                                        'Informe o motivo e uma sugestão de horário:',
+                                                    );
+                                                    if (reason)
+                                                        router.post(
+                                                            `/candidato/entrevistas/${interview.id}/responder`,
+                                                            {
+                                                                response:
+                                                                    'reschedule_requested',
+                                                                reason,
+                                                            },
+                                                        );
+                                                }}
+                                            >
+                                                Solicitar reagendamento
+                                            </button>
+                                        </>
+                                    )}
+                                </div>
+                            </div>
+                        </section>
                     ))}
                     <div className="mt-6 alert text-sm alert-info">
                         As avaliações apoiam o processo seletivo, mas as

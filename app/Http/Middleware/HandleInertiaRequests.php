@@ -52,6 +52,9 @@ class HandleInertiaRequests extends Middleware
                     'usersView' => $request->user()?->can('users.view') ?? false,
                     'hrView' => ($request->user()?->can('jobs.view') ?? false)
                         || ($request->user()?->can('employees.view') ?? false),
+                    'virtualOfficeView' => $request->user()?->can('intranet.access') ?? false,
+                    'tracksTime' => $request->user()?->tracks_time ?? false,
+                    'personnelView' => $request->user()?->can('time-records.manage') ?? false,
                 ],
             ],
             'companyBrand' => fn () => $this->companyBrand(),

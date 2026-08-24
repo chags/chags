@@ -30,6 +30,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'employee-documents.view-own',
             'employee-documents.upload-own',
             'time-records.view-own',
+            'time-records.request-adjustment',
             'vacations.view-own',
             'vacations.request',
             'benefits.view-own',
@@ -44,6 +45,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'employees.view-team',
             'employee-documents.view-own',
             'time-records.view-own',
+            'time-records.request-adjustment',
             'time-records.view-team',
             'time-records.approve',
             'vacations.view-own',
@@ -121,6 +123,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'payroll.approve',
         ],
         'administrador' => [
+            'intranet.access',
             'system.settings.view',
             'system.settings.company.update',
             'system.settings.mail.update',

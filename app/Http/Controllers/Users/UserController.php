@@ -5,10 +5,12 @@ namespace App\Http\Controllers\Users;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Users\UserRequest;
 use App\Models\User;
+use App\Models\WorkScheduleGroup;
 use App\Support\Authorization\RoleCatalog;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -21,7 +23,7 @@ class UserController extends Controller
 
         return Inertia::render('users/index', [
             'users' => User::query()
-                ->with('roles:id,name')
+                ->with(['roles:id,name', 'workScheduleAssignments' => fn ($query) => $query->where('active', true)])
                 ->orderBy('name')
                 ->get()
                 ->map(fn (User $user) => [
@@ -41,6 +43,8 @@ class UserController extends Controller
                     'state' => $user->state,
                     'avatar' => $user->avatar,
                     'role' => $user->roles->first()?->name,
+                    'tracks_time' => $user->tracks_time,
+                    'work_schedule_group_id' => $user->workScheduleAssignments->first()?->work_schedule_group_id,
                     'created_at' => $user->created_at?->toIso8601String(),
                     'is_current_user' => $user->is($request->user()),
                 ]),
@@ -48,6 +52,11 @@ class UserController extends Controller
             'roles' => collect(RoleCatalog::labels())
                 ->map(fn (string $label, string $name) => compact('name', 'label'))
                 ->values(),
+            'workScheduleGroups' => WorkScheduleGroup::query()
+                ->where('active', true)
+                ->orderBy('name')
+                ->orderBy('schedule_type')
+                ->get(['id', 'name', 'schedule_type']),
         ]);
     }
 
@@ -56,14 +65,18 @@ class UserController extends Controller
         $this->guardRole($request, $request->string('role')->toString());
         $data = $request->validated();
         $role = Arr::pull($data, 'role');
+        $groupId = Arr::pull($data, 'work_schedule_group_id');
 
-        $user = User::query()->create([
-            ...$data,
-            'workos_id' => 'local-user-'.Str::uuid(),
-            'avatar' => '',
-            'email_verified_at' => now(),
-        ]);
-        $user->syncRoles([$role]);
+        DB::transaction(function () use ($request, $data, $role, $groupId): void {
+            $user = User::query()->create([
+                ...$data,
+                'workos_id' => 'local-user-'.Str::uuid(),
+                'avatar' => '',
+                'email_verified_at' => now(),
+            ]);
+            $user->syncRoles([$role]);
+            $this->syncWorkSchedule($request, $user, $groupId);
+        });
 
         return response()->json(['message' => 'Usuário cadastrado com sucesso.'], 201);
     }
@@ -74,13 +87,17 @@ class UserController extends Controller
         $this->guardRole($request, $request->string('role')->toString());
         $data = $request->validated();
         $role = Arr::pull($data, 'role');
+        $groupId = Arr::pull($data, 'work_schedule_group_id');
 
         if (blank($data['password'] ?? null)) {
             unset($data['password']);
         }
 
-        $user->update($data);
-        $user->syncRoles([$role]);
+        DB::transaction(function () use ($request, $user, $data, $role, $groupId): void {
+            $user->update($data);
+            $user->syncRoles([$role]);
+            $this->syncWorkSchedule($request, $user, $groupId);
+        });
 
         return response()->json(['message' => 'Usuário atualizado com sucesso.']);
     }
@@ -102,6 +119,35 @@ class UserController extends Controller
             403,
             'Administradores não podem alterar um superadministrador.',
         );
+    }
+
+    private function syncWorkSchedule(Request $request, User $user, mixed $groupId): void
+    {
+        $activeAssignment = $user->workScheduleAssignments()->where('active', true)->first();
+
+        if (! $user->tracks_time) {
+            $user->workScheduleAssignments()->where('active', true)->update([
+                'active' => false,
+                'valid_until' => now()->subDay()->toDateString(),
+            ]);
+
+            return;
+        }
+
+        if ($activeAssignment?->work_schedule_group_id === (int) $groupId) {
+            return;
+        }
+
+        $user->workScheduleAssignments()->where('active', true)->update([
+            'active' => false,
+            'valid_until' => now()->subDay()->toDateString(),
+        ]);
+        $user->workScheduleAssignments()->create([
+            'work_schedule_group_id' => $groupId,
+            'valid_from' => now()->toDateString(),
+            'active' => true,
+            'assigned_by' => $request->user()->id,
+        ]);
     }
 
     private function guardRole(Request $request, string $role): void

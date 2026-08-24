@@ -17,7 +17,6 @@ import { faShieldHalved } from '@fortawesome/free-solid-svg-icons/faShieldHalved
 import { faSun } from '@fortawesome/free-solid-svg-icons/faSun';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Head, Link, usePage } from '@inertiajs/react';
-import { useEffect } from 'react';
 import { useAppearance } from '@/hooks/use-appearance';
 import { dashboard, login } from '@/routes';
 
@@ -118,10 +117,6 @@ export default function Welcome({ company, contactEmail }: Props) {
     const { resolvedAppearance, updateAppearance } = useAppearance();
     const brand = company?.tradeName ?? applicationName;
     const intranetRoute = auth.user ? dashboard() : login();
-
-    useEffect(() => {
-        document.documentElement.dataset.theme = resolvedAppearance;
-    }, [resolvedAppearance]);
 
     const toggleTheme = () => {
         updateAppearance(resolvedAppearance === 'dark' ? 'light' : 'dark');

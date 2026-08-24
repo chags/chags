@@ -30,12 +30,19 @@ type ManagedUser = {
     role: string | null;
     created_at: string | null;
     is_current_user: boolean;
+    tracks_time: boolean;
+    work_schedule_group_id: number | null;
 };
 
 type Props = {
     users: ManagedUser[];
     canManageSuperAdmins: boolean;
     roles: Array<{ name: string; label: string }>;
+    workScheduleGroups: Array<{
+        id: number;
+        name: string;
+        schedule_type: string;
+    }>;
 };
 
 const roleBadgeClasses: Record<string, string> = {
@@ -123,6 +130,7 @@ export default function UsersIndex({
     users,
     canManageSuperAdmins,
     roles,
+    workScheduleGroups,
 }: Props) {
     const dialog = useRef<HTMLDialogElement>(null);
     const userForm = useRef<HTMLFormElement>(null);
@@ -132,6 +140,7 @@ export default function UsersIndex({
     const [page, setPage] = useState(1);
     const [pageSize, setPageSize] = useState(10);
     const [processing, setProcessing] = useState(false);
+    const [tracksTime, setTracksTime] = useState(false);
     const [consultingCep, setConsultingCep] = useState(false);
     const [notice, setNotice] = useState<{
         type: 'success' | 'error';
@@ -164,6 +173,7 @@ export default function UsersIndex({
 
     const openUser = (user: ManagedUser | null = null) => {
         setEditing(user);
+        setTracksTime(user?.tracks_time ?? false);
         dialog.current?.showModal();
     };
 
@@ -345,6 +355,7 @@ export default function UsersIndex({
                                         <th>CPF</th>
                                         <th>Telefone</th>
                                         <th>Papel</th>
+                                        <th>Ponto</th>
                                         <th>Cadastro</th>
                                         <th className="text-right">Ações</th>
                                     </tr>
@@ -416,6 +427,15 @@ export default function UsersIndex({
                                                                 role.name ===
                                                                 user.role,
                                                         )?.label ?? 'Sem papel'}
+                                                    </span>
+                                                </td>
+                                                <td>
+                                                    <span
+                                                        className={`badge badge-sm ${user.tracks_time ? 'badge-success' : 'badge-ghost'}`}
+                                                    >
+                                                        {user.tracks_time
+                                                            ? 'Bate ponto'
+                                                            : 'Dispensado'}
                                                     </span>
                                                 </td>
                                                 <td>
@@ -528,7 +548,7 @@ export default function UsersIndex({
                                     {filteredUsers.length === 0 && (
                                         <tr>
                                             <td
-                                                colSpan={6}
+                                                colSpan={7}
                                                 className="py-10 text-center text-base-content/55"
                                             >
                                                 Nenhum usuário encontrado.
@@ -767,7 +787,49 @@ export default function UsersIndex({
                                     ))}
                             </select>
                         </Field>
-                        <div />
+                        <label className="flex cursor-pointer items-center gap-3 rounded-box border border-base-300 px-4 py-3">
+                            <input
+                                name="tracks_time"
+                                type="checkbox"
+                                value="1"
+                                className="toggle toggle-primary"
+                                defaultChecked={editing?.tracks_time ?? false}
+                                checked={tracksTime}
+                                onChange={(event) =>
+                                    setTracksTime(event.currentTarget.checked)
+                                }
+                            />
+                            <span>
+                                <span className="block font-medium">
+                                    Bate ponto
+                                </span>
+                                <span className="block text-xs text-base-content/55">
+                                    Habilita o Cartão de Ponto para este
+                                    usuário.
+                                </span>
+                            </span>
+                        </label>
+                        {tracksTime && (
+                            <Field label="Escala de trabalho">
+                                <select
+                                    name="work_schedule_group_id"
+                                    className="select w-full"
+                                    defaultValue={
+                                        editing?.work_schedule_group_id ?? ''
+                                    }
+                                    required
+                                >
+                                    <option value="" disabled>
+                                        Selecione uma escala
+                                    </option>
+                                    {workScheduleGroups.map((group) => (
+                                        <option key={group.id} value={group.id}>
+                                            {group.name} ({group.schedule_type})
+                                        </option>
+                                    ))}
+                                </select>
+                            </Field>
+                        )}
                         <Field
                             label={editing ? 'Nova senha (opcional)' : 'Senha'}
                         >
