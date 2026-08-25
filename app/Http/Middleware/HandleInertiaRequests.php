@@ -55,6 +55,9 @@ class HandleInertiaRequests extends Middleware
                     'virtualOfficeView' => $request->user()?->can('intranet.access') ?? false,
                     'tracksTime' => $request->user()?->tracks_time ?? false,
                     'personnelView' => $request->user()?->can('time-records.manage') ?? false,
+                    'timeApprovalsView' => ($request->user()?->can('time-records.approve') ?? false)
+                        || ($request->user()?->can('medical-certificates.review') ?? false),
+                    'medicalCertificateSubmit' => $request->user()?->can('medical-certificates.submit') ?? false,
                 ],
             ],
             'companyBrand' => fn () => $this->companyBrand(),

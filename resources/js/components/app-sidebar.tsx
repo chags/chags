@@ -234,7 +234,8 @@ export function AppSidebar({ collapsed = false }: Props) {
                             )}
                         </li>
                     )}
-                    {auth.abilities.personnelView && (
+                    {(auth.abilities.personnelView ||
+                        auth.abilities.timeApprovalsView) && (
                         <li className="mt-4">
                             <button
                                 type="button"
@@ -267,20 +268,40 @@ export function AppSidebar({ collapsed = false }: Props) {
                                     id="personnel-sidebar-submenu"
                                     className={`mt-1 ml-5 gap-1 border-l border-base-300 pl-3 ${collapsedClass}`}
                                 >
-                                    <li>
-                                        <Link
-                                            href="/personnel/time-card-settings"
-                                            onClick={closeMobileDrawer}
-                                            className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl('/personnel/time-card-settings') ? 'menu-active font-semibold' : ''}`}
-                                        >
-                                            <FontAwesomeIcon
-                                                icon={faSliders}
-                                                className="shrink-0"
-                                                fixedWidth
-                                            />
-                                            <span>Config. cartão de ponto</span>
-                                        </Link>
-                                    </li>
+                                    {auth.abilities.timeApprovalsView && (
+                                        <li>
+                                            <Link
+                                                href="/personnel/time-approvals"
+                                                onClick={closeMobileDrawer}
+                                                className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl('/personnel/time-approvals') ? 'menu-active font-semibold' : ''}`}
+                                            >
+                                                <FontAwesomeIcon
+                                                    icon={faClipboardCheck}
+                                                    className="shrink-0"
+                                                    fixedWidth
+                                                />
+                                                <span>Aprovações de ponto</span>
+                                            </Link>
+                                        </li>
+                                    )}
+                                    {auth.abilities.personnelView && (
+                                        <li>
+                                            <Link
+                                                href="/personnel/time-card-settings"
+                                                onClick={closeMobileDrawer}
+                                                className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl('/personnel/time-card-settings') ? 'menu-active font-semibold' : ''}`}
+                                            >
+                                                <FontAwesomeIcon
+                                                    icon={faSliders}
+                                                    className="shrink-0"
+                                                    fixedWidth
+                                                />
+                                                <span>
+                                                    Config. cartão de ponto
+                                                </span>
+                                            </Link>
+                                        </li>
+                                    )}
                                 </ul>
                             )}
                         </li>

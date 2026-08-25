@@ -3,7 +3,14 @@ import { ChevronLeft, ChevronRight, Clock3, PencilLine } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 
-type TimeEntry = { id: number; type: string; time: string };
+type TimeEntry = {
+    id: number;
+    type: string;
+    time: string;
+    status: 'pending' | 'approved' | 'cancelled';
+    reason: string | null;
+    source: string;
+};
 type PendingEntry = { requestId: number; type: string; time: string };
 type Day = {
     date: string;
@@ -18,10 +25,26 @@ type Day = {
     entries: TimeEntry[];
     pendingEntries: PendingEntry[];
     workedMinutes: number;
+    excusedMinutes: number;
     balanceMinutes: number;
     accumulatedBalanceMinutes: number;
-    occurrence: 'missing' | 'incomplete' | null;
-    adjustmentStatus: 'pending' | 'approved' | 'rejected' | null;
+    occurrence:
+        | 'missing'
+        | 'incomplete'
+        | 'hour_bank_leave'
+        | 'holiday'
+        | 'medical_leave'
+        | 'medical_pending'
+        | null;
+    dayType:
+        | 'workday'
+        | 'day_off'
+        | 'custom_schedule'
+        | 'hour_bank_leave'
+        | 'holiday';
+    holiday: { name: string; partial: boolean } | null;
+    absence: { status: string; type: string } | null;
+    adjustmentStatus: 'pending' | 'approved' | 'cancelled' | null;
 };
 
 type Props = {
@@ -34,6 +57,7 @@ type Props = {
         days: Day[];
     };
     canRequestAdjustment: boolean;
+    canSubmitMedicalCertificate: boolean;
 };
 
 const entryTypes = [
@@ -60,10 +84,25 @@ const minutesToHours = (minutes: number) => {
 };
 
 const dateValue = (date: string) => new Date(`${date}T00:00:00Z`);
+const effectiveEntry = (day: Day, type: string) => {
+    const entries = day.entries.filter((entry) => entry.type === type);
+
+    return (
+        entries.find((entry) => entry.status === 'approved') ??
+        entries.find((entry) => entry.status === 'pending') ??
+        entries.at(-1)
+    );
+};
+const entryStatusClass = {
+    approved: 'badge-success',
+    pending: 'badge-warning',
+    cancelled: 'badge-error',
+};
 
 export default function TimeCardIndex({
     timeCard,
     canRequestAdjustment,
+    canSubmitMedicalCertificate,
 }: Props) {
     const dialog = useRef<HTMLDialogElement>(null);
     const [selected, setSelected] = useState<Day | null>(null);
@@ -71,6 +110,7 @@ export default function TimeCardIndex({
     const [times, setTimes] = useState<Record<string, string>>({});
     const [error, setError] = useState('');
     const [processing, setProcessing] = useState(false);
+    const [certificateMessage, setCertificateMessage] = useState('');
 
     const changeMonth = (offset: number) => {
         const [year, month] = timeCard.month.split('-').map(Number);
@@ -92,8 +132,9 @@ export default function TimeCardIndex({
             Object.fromEntries(
                 entryTypes.map(({ type }) => [
                     type,
-                    day.entries.find((entry) => entry.type === type)?.time ??
-                        '',
+                    effectiveEntry(day, type)?.status === 'approved'
+                        ? (effectiveEntry(day, type)?.time ?? '')
+                        : '',
                 ]),
             ),
         );
@@ -127,6 +168,55 @@ export default function TimeCardIndex({
                 onFinish: () => setProcessing(false),
             },
         );
+    };
+
+    const submitMedicalCertificate = async (
+        event: FormEvent<HTMLFormElement>,
+    ) => {
+        event.preventDefault();
+        setProcessing(true);
+        setCertificateMessage('');
+        const form = event.currentTarget;
+        const data = new FormData(form);
+        const csrf = document.querySelector<HTMLMetaElement>(
+            'meta[name="csrf-token"]',
+        )?.content;
+
+        try {
+            const response = await fetch(
+                '/virtual-office/medical-certificates',
+                {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'X-CSRF-TOKEN': csrf ?? '',
+                    },
+                    body: data,
+                },
+            );
+            const result = await response.json();
+
+            if (!response.ok) {
+                throw new Error(
+                    result.message ??
+                        Object.values(result.errors ?? {})
+                            .flat()
+                            .join(' '),
+                );
+            }
+
+            setCertificateMessage(result.message);
+            form.reset();
+            router.reload({ only: ['timeCard'] });
+        } catch (certificateError) {
+            setCertificateMessage(
+                certificateError instanceof Error
+                    ? certificateError.message
+                    : 'Não foi possível enviar o atestado.',
+            );
+        } finally {
+            setProcessing(false);
+        }
     };
 
     const monthLabel = new Intl.DateTimeFormat('pt-BR', {
@@ -194,6 +284,99 @@ export default function TimeCardIndex({
                     />
                 </section>
 
+                {canSubmitMedicalCertificate && (
+                    <details className="collapse-arrow collapse border border-base-300 bg-base-100 shadow-sm">
+                        <summary className="collapse-title font-semibold">
+                            Enviar atestado médico
+                        </summary>
+                        <form
+                            className="collapse-content space-y-4"
+                            onSubmit={submitMedicalCertificate}
+                        >
+                            {certificateMessage && (
+                                <div className="alert alert-info">
+                                    {certificateMessage}
+                                </div>
+                            )}
+                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                                <label className="fieldset">
+                                    <span className="fieldset-legend">
+                                        Data inicial
+                                    </span>
+                                    <input
+                                        name="starts_on"
+                                        type="date"
+                                        className="input w-full"
+                                        required
+                                    />
+                                </label>
+                                <label className="fieldset">
+                                    <span className="fieldset-legend">
+                                        Data final
+                                    </span>
+                                    <input
+                                        name="ends_on"
+                                        type="date"
+                                        className="input w-full"
+                                        required
+                                    />
+                                </label>
+                                <label className="fieldset">
+                                    <span className="fieldset-legend">
+                                        Início parcial
+                                    </span>
+                                    <input
+                                        name="starts_at"
+                                        type="time"
+                                        className="input w-full"
+                                    />
+                                </label>
+                                <label className="fieldset">
+                                    <span className="fieldset-legend">
+                                        Fim parcial
+                                    </span>
+                                    <input
+                                        name="ends_at"
+                                        type="time"
+                                        className="input w-full"
+                                    />
+                                </label>
+                            </div>
+                            <label className="fieldset">
+                                <span className="fieldset-legend">
+                                    Justificativa
+                                </span>
+                                <textarea
+                                    name="reason"
+                                    className="textarea min-h-20 w-full"
+                                    minLength={10}
+                                    required
+                                />
+                            </label>
+                            <label className="fieldset">
+                                <span className="fieldset-legend">
+                                    Documento (PDF, JPG ou PNG; até 5 MB)
+                                </span>
+                                <input
+                                    name="document"
+                                    type="file"
+                                    accept="application/pdf,image/jpeg,image/png"
+                                    className="file-input w-full"
+                                    required
+                                />
+                            </label>
+                            <div className="flex justify-end">
+                                <button
+                                    className="btn btn-primary"
+                                    disabled={processing}
+                                >
+                                    Enviar para análise
+                                </button>
+                            </div>
+                        </form>
+                    </details>
+                )}
+
                 <section className="card border border-base-300 bg-base-100 shadow-sm">
                     <div className="card-body p-0 sm:p-4">
                         <div className="overflow-x-auto">
@@ -245,19 +428,29 @@ export default function TimeCardIndex({
                                             <td>
                                                 <div className="flex min-w-48 flex-wrap gap-1">
                                                     {entryTypes.map(
-                                                        ({ type }) => (
-                                                            <span
-                                                                key={type}
-                                                                className="badge badge-ghost badge-sm"
-                                                            >
-                                                                {day.entries.find(
-                                                                    (entry) =>
-                                                                        entry.type ===
-                                                                        type,
-                                                                )?.time ??
-                                                                    '--:--'}
-                                                            </span>
-                                                        ),
+                                                        ({ type }) => {
+                                                            const entry =
+                                                                effectiveEntry(
+                                                                    day,
+                                                                    type,
+                                                                );
+
+                                                            return (
+                                                                <span
+                                                                    key={type}
+                                                                    title={
+                                                                        entry?.reason ??
+                                                                        entryLabels[
+                                                                            type
+                                                                        ]
+                                                                    }
+                                                                    className={`badge badge-sm ${entry ? entryStatusClass[entry.status] : 'badge-ghost'}`}
+                                                                >
+                                                                    {entry?.time ??
+                                                                        '--:--'}
+                                                                </span>
+                                                            );
+                                                        },
                                                     )}
                                                 </div>
                                                 {day.pendingEntries.length >
@@ -289,6 +482,46 @@ export default function TimeCardIndex({
                                                         )}
                                                     </div>
                                                 )}
+                                                {day.entries.some((entry) =>
+                                                    entry.type.startsWith(
+                                                        'overtime_',
+                                                    ),
+                                                ) && (
+                                                    <div className="mt-2 space-y-1">
+                                                        {day.entries
+                                                            .filter((entry) =>
+                                                                entry.type.startsWith(
+                                                                    'overtime_',
+                                                                ),
+                                                            )
+                                                            .map((entry) => (
+                                                                <div
+                                                                    key={
+                                                                        entry.id
+                                                                    }
+                                                                    className="flex items-center gap-2 text-xs"
+                                                                >
+                                                                    <span
+                                                                        className={`badge badge-xs ${entryStatusClass[entry.status]}`}
+                                                                    >
+                                                                        Hora
+                                                                        extra
+                                                                    </span>
+                                                                    <span>
+                                                                        {
+                                                                            entryLabels[
+                                                                                entry
+                                                                                    .type
+                                                                            ]
+                                                                        }{' '}
+                                                                        {
+                                                                            entry.time
+                                                                        }
+                                                                    </span>
+                                                                </div>
+                                                            ))}
+                                                    </div>
+                                                )}
                                             </td>
                                             <td className="font-mono">
                                                 {minutesToHours(
@@ -303,8 +536,32 @@ export default function TimeCardIndex({
                                                 )}
                                             </td>
                                             <td>
-                                                {day.adjustmentStatus ===
-                                                'pending' ? (
+                                                {day.occurrence ===
+                                                'medical_leave' ? (
+                                                    <span className="badge badge-sm badge-success">
+                                                        Ausência abonada —
+                                                        Atestado
+                                                    </span>
+                                                ) : day.occurrence ===
+                                                  'medical_pending' ? (
+                                                    <span className="badge badge-sm badge-warning">
+                                                        Atestado em análise
+                                                    </span>
+                                                ) : day.occurrence ===
+                                                  'holiday' ? (
+                                                    <span className="badge badge-sm badge-info">
+                                                        Feriado
+                                                        {day.holiday
+                                                            ? ` — ${day.holiday.name}`
+                                                            : ''}
+                                                    </span>
+                                                ) : day.occurrence ===
+                                                  'hour_bank_leave' ? (
+                                                    <span className="badge badge-sm badge-success">
+                                                        Folga — Banco de horas
+                                                    </span>
+                                                ) : day.adjustmentStatus ===
+                                                  'pending' ? (
                                                     <span className="badge badge-sm badge-warning">
                                                         Ajuste pendente
                                                     </span>

@@ -36,6 +36,8 @@ export type Auth = {
         virtualOfficeView: boolean;
         tracksTime: boolean;
         personnelView: boolean;
+        timeApprovalsView: boolean;
+        medicalCertificateSubmit: boolean;
     };
 };
 

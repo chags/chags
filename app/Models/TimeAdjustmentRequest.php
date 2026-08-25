@@ -38,4 +38,9 @@ class TimeAdjustmentRequest extends Model
     {
         return $this->hasMany(HourBankTransaction::class);
     }
+
+    public function timeEntries(): HasMany
+    {
+        return $this->hasMany(TimeEntry::class);
+    }
 }

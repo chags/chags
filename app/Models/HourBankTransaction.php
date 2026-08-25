@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['user_id', 'work_date', 'minutes', 'type', 'description', 'time_adjustment_request_id', 'created_by'])]
+#[Fillable(['user_id', 'work_date', 'minutes', 'type', 'description', 'time_adjustment_request_id', 'work_schedule_exception_id', 'created_by'])]
 class HourBankTransaction extends Model
 {
     /** @use HasFactory<HourBankTransactionFactory> */
@@ -32,5 +32,10 @@ class HourBankTransaction extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function workScheduleException(): BelongsTo
+    {
+        return $this->belongsTo(WorkScheduleException::class);
     }
 }

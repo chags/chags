@@ -7,6 +7,8 @@ use App\Http\Requests\Personnel\WorkScheduleAssignmentRequest;
 use App\Http\Requests\Personnel\WorkScheduleGroupRequest;
 use App\Models\User;
 use App\Models\WorkScheduleGroup;
+use App\Models\Company;
+use App\Models\Holiday;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -25,6 +27,8 @@ class TimeCardSettingsController extends Controller
             'groups' => WorkScheduleGroup::query()->with(['days', 'assignments.user:id,name'])->withCount(['assignments' => fn ($query) => $query->where('active', true)])->orderBy('name')->get(),
             'users' => $users->map(fn (User $user) => ['id' => $user->id, 'name' => $user->name, 'email' => $user->email, 'group' => $user->workScheduleAssignments->first()?->group]),
             'metrics' => ['activeGroups' => WorkScheduleGroup::query()->where('active', true)->count(), 'tracksTimeUsers' => $users->count(), 'unassignedUsers' => $users->filter(fn (User $user) => $user->workScheduleAssignments->isEmpty())->count()],
+            'companies' => Company::query()->where('active', true)->orderBy('unit_name')->get(['id', 'unit_name', 'city', 'state']),
+            'holidays' => Holiday::query()->with('company:id,unit_name')->latest('holiday_date')->limit(20)->get(),
         ]);
     }
 

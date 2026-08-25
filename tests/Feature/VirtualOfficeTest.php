@@ -4,13 +4,17 @@ use App\Models\Company;
 use App\Models\Department;
 use App\Models\EmployeeProfile;
 use App\Models\EmployeeWorkSchedule;
+use App\Models\Holiday;
 use App\Models\HourBankTransaction;
 use App\Models\Position;
+use App\Models\TimeAdjustmentRequest;
 use App\Models\TimeEntry;
 use App\Models\User;
 use App\Models\VacationPeriod;
 use Carbon\CarbonImmutable;
 use Database\Seeders\RolesAndPermissionsSeeder;
+use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 
 beforeEach(function () {
@@ -236,4 +240,464 @@ test('an internal user without an employee profile can access the virtual office
             ->where('tracksTime', false));
 
     $this->actingAs($user)->get('/virtual-office/time-card')->assertForbidden();
+});
+
+test('a manager sees only time adjustments from direct reports', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+
+    $directReport = User::factory()->create(['tracks_time' => true]);
+    $directReport->assignRole('colaborador');
+    createEmployee($directReport)->update(['manager_id' => $manager->id]);
+
+    $otherEmployee = User::factory()->create(['tracks_time' => true]);
+    $otherEmployee->assignRole('colaborador');
+    createEmployee($otherEmployee);
+
+    TimeAdjustmentRequest::query()->create([
+        'user_id' => $directReport->id,
+        'work_date' => '2026-08-19',
+        'requested_entries' => [['type' => 'clock_out', 'time' => '17:00']],
+        'reason' => 'Esqueci de registrar a saída no horário correto.',
+        'status' => 'pending',
+    ]);
+    TimeAdjustmentRequest::query()->create([
+        'user_id' => $otherEmployee->id,
+        'work_date' => '2026-08-19',
+        'requested_entries' => [['type' => 'clock_out', 'time' => '18:00']],
+        'reason' => 'Solicitação pertencente a outro responsável.',
+        'status' => 'pending',
+    ]);
+
+    $this->actingAs($manager)
+        ->get('/personnel/time-approvals')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('personnel/time-approvals/index')
+            ->has('adjustments.data', 1)
+            ->where('adjustments.data.0.employee.id', $directReport->id));
+});
+
+test('a manager can approve a direct report manual time adjustment', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('colaborador');
+    createEmployee($employee)->update(['manager_id' => $manager->id]);
+    $adjustment = TimeAdjustmentRequest::query()->create([
+        'user_id' => $employee->id,
+        'work_date' => '2026-08-19',
+        'requested_entries' => [['type' => 'clock_out', 'time' => '17:00']],
+        'reason' => 'Esqueci de registrar a saída no horário correto.',
+        'status' => 'pending',
+    ]);
+
+    $this->actingAs($manager)
+        ->patchJson("/personnel/time-approvals/{$adjustment->id}", [
+            'decision' => 'approve',
+            'notes' => 'Horário confirmado com a equipe.',
+        ])
+        ->assertOk()
+        ->assertJsonPath('status', 'approved');
+
+    $adjustment->refresh();
+    expect($adjustment->status)->toBe('approved')
+        ->and($adjustment->reviewed_by)->toBe($manager->id)
+        ->and($adjustment->timeEntries)->toHaveCount(1)
+        ->and($adjustment->timeEntries->first()->source)->toBe('manual')
+        ->and($adjustment->timeEntries->first()->recorded_at->setTimezone(config('app.business_timezone'))->format('Y-m-d H:i'))->toBe('2026-08-19 17:00');
+});
+
+test('a manager must explain a rejection and no time entry is created', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('colaborador');
+    createEmployee($employee)->update(['manager_id' => $manager->id]);
+    $adjustment = TimeAdjustmentRequest::query()->create([
+        'user_id' => $employee->id,
+        'work_date' => '2026-08-19',
+        'requested_entries' => [['type' => 'clock_in', 'time' => '07:00']],
+        'reason' => 'Solicito a inclusão manual da entrada informada.',
+        'status' => 'pending',
+    ]);
+
+    $this->actingAs($manager)
+        ->patchJson("/personnel/time-approvals/{$adjustment->id}", ['decision' => 'reject'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('notes');
+
+    $this->actingAs($manager)
+        ->patchJson("/personnel/time-approvals/{$adjustment->id}", [
+            'decision' => 'reject',
+            'notes' => 'O horário informado não foi confirmado.',
+        ])
+        ->assertOk()
+        ->assertJsonPath('status', 'cancelled');
+
+    expect($adjustment->refresh()->status)->toBe('cancelled')
+        ->and($adjustment->review_notes)->toBe('O horário informado não foi confirmado.')
+        ->and($adjustment->timeEntries()->exists())->toBeFalse();
+});
+
+test('a manager cannot review an employee outside their team', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('colaborador');
+    createEmployee($employee);
+    $adjustment = TimeAdjustmentRequest::query()->create([
+        'user_id' => $employee->id,
+        'work_date' => '2026-08-19',
+        'requested_entries' => [['type' => 'clock_in', 'time' => '08:00']],
+        'reason' => 'Solicitação fora da equipe deste gestor.',
+        'status' => 'pending',
+    ]);
+
+    $this->actingAs($manager)
+        ->patchJson("/personnel/time-approvals/{$adjustment->id}", [
+            'decision' => 'approve',
+        ])
+        ->assertForbidden();
+
+    expect($adjustment->refresh()->status)->toBe('pending');
+});
+
+test('a manager can create an individual schedule exception without changing the group', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('colaborador');
+    createEmployee($employee)->update(['manager_id' => $manager->id]);
+
+    $this->actingAs($manager)
+        ->postJson('/personnel/work-schedule-exceptions', [
+            'user_id' => $employee->id,
+            'work_date' => '2026-08-21',
+            'type' => 'custom_schedule',
+            'start_time' => '07:00',
+            'break_start_time' => '12:00',
+            'break_end_time' => '13:00',
+            'end_time' => '16:00',
+            'reason' => 'Jornada antecipada autorizada para este colaborador.',
+        ])
+        ->assertCreated();
+
+    $this->assertDatabaseHas('work_schedule_exceptions', [
+        'user_id' => $employee->id,
+        'work_date' => '2026-08-21 00:00:00',
+        'type' => 'custom_schedule',
+        'expected_minutes' => 480,
+        'created_by' => $manager->id,
+    ]);
+});
+
+test('a manager can grant hour bank leave and debit the scheduled day', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('colaborador');
+    createEmployee($employee)->update(['manager_id' => $manager->id]);
+    EmployeeWorkSchedule::query()->create([
+        'user_id' => $employee->id,
+        'name' => 'Administrativa',
+        'weekdays' => [1, 2, 3, 4, 5],
+        'start_time' => '08:00',
+        'break_start_time' => '12:00',
+        'break_end_time' => '13:00',
+        'end_time' => '17:00',
+        'daily_minutes' => 480,
+        'weekly_minutes' => 2400,
+        'valid_from' => '2026-01-01',
+        'active' => true,
+    ]);
+    HourBankTransaction::query()->create([
+        'user_id' => $employee->id,
+        'work_date' => '2026-08-20',
+        'minutes' => 480,
+        'type' => 'worked',
+    ]);
+
+    $this->actingAs($manager)
+        ->postJson('/personnel/work-schedule-exceptions', [
+            'user_id' => $employee->id,
+            'work_date' => '2026-08-21',
+            'type' => 'hour_bank_leave',
+            'reason' => 'Folga compensatória combinada com o colaborador.',
+        ])
+        ->assertCreated();
+
+    expect($employee->hourBankTransactions()->sum('minutes'))->toBe(0);
+    $this->assertDatabaseHas('hour_bank_transactions', [
+        'user_id' => $employee->id,
+        'work_date' => '2026-08-21 00:00:00',
+        'minutes' => -480,
+        'type' => 'leave',
+    ]);
+
+    $this->actingAs($employee)
+        ->get('/virtual-office/time-card?month=2026-08')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('timeCard.days.20.occurrence', 'hour_bank_leave')
+            ->where('timeCard.days.20.expectedMinutes', 0)
+            ->where('timeCard.currentBalanceMinutes', 0));
+});
+
+test('hour bank leave is rejected when the employee balance is insufficient', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('colaborador');
+    createEmployee($employee)->update(['manager_id' => $manager->id]);
+    EmployeeWorkSchedule::query()->create([
+        'user_id' => $employee->id,
+        'name' => 'Administrativa',
+        'weekdays' => [1, 2, 3, 4, 5],
+        'start_time' => '08:00',
+        'break_start_time' => '12:00',
+        'break_end_time' => '13:00',
+        'end_time' => '17:00',
+        'daily_minutes' => 480,
+        'weekly_minutes' => 2400,
+        'valid_from' => '2026-01-01',
+        'active' => true,
+    ]);
+
+    $this->actingAs($manager)
+        ->postJson('/personnel/work-schedule-exceptions', [
+            'user_id' => $employee->id,
+            'work_date' => '2026-08-21',
+            'type' => 'hour_bank_leave',
+            'reason' => 'Folga compensatória sem saldo suficiente disponível.',
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('user_id');
+
+    $this->assertDatabaseMissing('work_schedule_exceptions', [
+        'user_id' => $employee->id,
+        'work_date' => '2026-08-21 00:00:00',
+    ]);
+});
+
+test('automatic punches are approved inside the window and cancelled outside it', function () {
+    $user = User::factory()->create(['tracks_time' => true]);
+    $user->assignRole('colaborador');
+    EmployeeWorkSchedule::query()->create([
+        'user_id' => $user->id,
+        'name' => 'Administrativa',
+        'weekdays' => [1, 2, 3, 4, 5],
+        'start_time' => '08:00',
+        'break_start_time' => '12:00',
+        'break_end_time' => '13:00',
+        'end_time' => '17:00',
+        'daily_minutes' => 480,
+        'weekly_minutes' => 2400,
+        'valid_from' => '2026-01-01',
+        'active' => true,
+    ]);
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-08-20 07:00:00', config('app.business_timezone')));
+    $this->actingAs($user)
+        ->postJson('/virtual-office/time-punch')
+        ->assertCreated()
+        ->assertJsonPath('status', 'cancelled')
+        ->assertJsonPath('reason', 'outside_window');
+
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-08-20 08:05:00', config('app.business_timezone')));
+    $this->actingAs($user)
+        ->postJson('/virtual-office/time-punch')
+        ->assertCreated()
+        ->assertJsonPath('status', 'approved');
+
+    $this->assertDatabaseHas('time_entries', [
+        'user_id' => $user->id,
+        'recorded_at' => '2026-08-20 10:00:00',
+        'status' => 'cancelled',
+        'reason' => 'outside_window',
+    ]);
+});
+
+test('a holiday removes expected hours and sends punches for approval', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('dp-analista');
+    $user = User::factory()->create(['tracks_time' => true]);
+    $user->assignRole('colaborador');
+    $profile = createEmployee($user);
+    EmployeeWorkSchedule::query()->create([
+        'user_id' => $user->id,
+        'name' => 'Administrativa',
+        'weekdays' => [1, 2, 3, 4, 5],
+        'start_time' => '08:00',
+        'break_start_time' => '12:00',
+        'break_end_time' => '13:00',
+        'end_time' => '17:00',
+        'daily_minutes' => 480,
+        'weekly_minutes' => 2400,
+        'valid_from' => '2026-01-01',
+        'active' => true,
+    ]);
+    Holiday::query()->create([
+        'company_id' => $profile->company_id,
+        'name' => 'Feriado da unidade',
+        'holiday_date' => '2026-08-20',
+        'scope' => 'company',
+        'active' => true,
+        'created_by' => $manager->id,
+    ]);
+
+    CarbonImmutable::setTestNow('2026-08-20 08:00:00');
+    $this->actingAs($user)
+        ->postJson('/virtual-office/time-punch')
+        ->assertCreated()
+        ->assertJsonPath('status', 'pending')
+        ->assertJsonPath('reason', 'holiday');
+
+    $this->actingAs($user)
+        ->get('/virtual-office/time-card?month=2026-08')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('timeCard.days.19.occurrence', 'holiday')
+            ->where('timeCard.days.19.expectedMinutes', 0)
+            ->where('timeCard.days.19.holiday.name', 'Feriado da unidade'));
+});
+
+test('a medical certificate is stored privately and can be approved to excuse the day', function () {
+    Storage::fake('local');
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('colaborador');
+    createEmployee($employee)->update(['manager_id' => $manager->id]);
+    EmployeeWorkSchedule::query()->create([
+        'user_id' => $employee->id,
+        'name' => 'Administrativa',
+        'weekdays' => [1, 2, 3, 4, 5],
+        'start_time' => '08:00',
+        'break_start_time' => '12:00',
+        'break_end_time' => '13:00',
+        'end_time' => '17:00',
+        'daily_minutes' => 480,
+        'weekly_minutes' => 2400,
+        'valid_from' => '2026-01-01',
+        'active' => true,
+    ]);
+
+    $this->actingAs($employee)
+        ->postJson('/virtual-office/medical-certificates', [
+            'starts_on' => '2026-08-19',
+            'ends_on' => '2026-08-19',
+            'reason' => 'Ausência médica durante toda a jornada de trabalho.',
+            'document' => UploadedFile::fake()->create('atestado.pdf', 100, 'application/pdf'),
+        ])
+        ->assertCreated()
+        ->assertJsonPath('status', 'pending');
+
+    $certificate = $employee->absenceJustifications()->sole();
+    Storage::disk('local')->assertExists($certificate->document_path);
+
+    $this->actingAs($manager)
+        ->patchJson("/personnel/medical-certificates/{$certificate->id}", [
+            'decision' => 'approve',
+            'notes' => 'Documento conferido.',
+        ])
+        ->assertOk()
+        ->assertJsonPath('status', 'approved');
+
+    $this->actingAs($employee)
+        ->get('/virtual-office/time-card?month=2026-08')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('timeCard.days.18.occurrence', 'medical_leave')
+            ->where('timeCard.days.18.excusedMinutes', 480)
+            ->where('timeCard.days.18.expectedMinutes', 0));
+
+    expect($employee->hourBankTransactions()->sum('minutes'))->toBe(0);
+});
+
+test('a manager approval credits a complete overtime pair to the hour bank', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('colaborador');
+    createEmployee($employee)->update(['manager_id' => $manager->id]);
+    $adjustment = TimeAdjustmentRequest::query()->create([
+        'user_id' => $employee->id,
+        'work_date' => '2026-08-19',
+        'requested_entries' => [
+            ['type' => 'overtime_start', 'time' => '18:00'],
+            ['type' => 'overtime_end', 'time' => '20:00'],
+        ],
+        'reason' => 'Período extraordinário realizado após o expediente regular.',
+        'status' => 'pending',
+    ]);
+
+    $this->actingAs($manager)
+        ->patchJson("/personnel/time-approvals/{$adjustment->id}", [
+            'decision' => 'approve',
+        ])
+        ->assertOk();
+
+    $this->assertDatabaseHas('hour_bank_transactions', [
+        'user_id' => $employee->id,
+        'work_date' => '2026-08-19 00:00:00',
+        'minutes' => 120,
+        'type' => 'overtime',
+        'time_adjustment_request_id' => $adjustment->id,
+    ]);
+});
+
+test('a manager can approve a pending holiday punch from a direct report', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('colaborador');
+    createEmployee($employee)->update(['manager_id' => $manager->id]);
+    $entry = TimeEntry::query()->create([
+        'user_id' => $employee->id,
+        'recorded_at' => '2026-08-20 08:00:00',
+        'type' => 'clock_in',
+        'source' => 'web',
+        'status' => 'pending',
+        'reason' => 'holiday',
+        'created_by' => $employee->id,
+    ]);
+
+    $this->actingAs($manager)
+        ->patchJson("/personnel/time-entries/{$entry->id}", [
+            'decision' => 'approve',
+            'notes' => 'Trabalho no feriado confirmado.',
+        ])
+        ->assertOk()
+        ->assertJsonPath('status', 'approved');
+
+    expect($entry->refresh()->status)->toBe('approved')
+        ->and($entry->reviewed_by)->toBe($manager->id);
+});
+
+test('time punches are displayed and grouped in the business timezone', function () {
+    $user = User::factory()->create(['tracks_time' => true]);
+    $user->assignRole('colaborador');
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-08-25T01:08:00+00:00'));
+    TimeEntry::query()->create([
+        'user_id' => $user->id,
+        'recorded_at' => '2026-08-25 01:00:53+00',
+        'type' => 'clock_in',
+        'source' => 'web',
+        'status' => 'cancelled',
+        'reason' => 'outside_window',
+        'created_by' => $user->id,
+    ]);
+
+    $this->actingAs($user)
+        ->getJson('/virtual-office/time-punch')
+        ->assertOk()
+        ->assertJsonPath('entries.0.time', '22:00');
+
+    $this->actingAs($user)
+        ->get('/virtual-office/time-card?month=2026-08')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('timeCard.days.23.date', '2026-08-24')
+            ->where('timeCard.days.23.entries.0.time', '22:00'));
 });

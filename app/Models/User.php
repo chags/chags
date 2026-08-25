@@ -100,6 +100,16 @@ class User extends Authenticatable
         return $this->hasMany(WorkScheduleAssignment::class);
     }
 
+    public function workScheduleExceptions(): HasMany
+    {
+        return $this->hasMany(WorkScheduleException::class);
+    }
+
+    public function absenceJustifications(): HasMany
+    {
+        return $this->hasMany(AbsenceJustification::class);
+    }
+
     public function applications(): HasMany
     {
         return $this->hasMany(Application::class, 'candidate_id');

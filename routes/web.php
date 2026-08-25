@@ -17,6 +17,12 @@ use App\Http\Controllers\Hr\JobController;
 use App\Http\Controllers\Hr\JobImageController;
 use App\Http\Controllers\Hr\PositionController;
 use App\Http\Controllers\Personnel\TimeCardSettingsController;
+use App\Http\Controllers\TimeManagement\HolidayController;
+use App\Http\Controllers\TimeManagement\MedicalCertificateController;
+use App\Http\Controllers\TimeManagement\MedicalCertificateReviewController;
+use App\Http\Controllers\TimeManagement\TimeApprovalController;
+use App\Http\Controllers\TimeManagement\TimeEntryReviewController;
+use App\Http\Controllers\TimeManagement\WorkScheduleExceptionController;
 use App\Http\Controllers\VirtualOffice\DashboardController as VirtualOfficeDashboardController;
 use App\Http\Controllers\VirtualOffice\TimeAdjustmentRequestController;
 use App\Http\Controllers\VirtualOffice\TimeCardController;
@@ -88,7 +94,13 @@ Route::middleware($authenticatedMiddleware)->group(function () {
             Route::post('time-adjustments', [TimeAdjustmentRequestController::class, 'store'])
                 ->middleware('permission:time-records.request-adjustment')
                 ->name('time-adjustments.store');
+            Route::post('medical-certificates', [MedicalCertificateController::class, 'store'])
+                ->middleware('permission:medical-certificates.submit')
+                ->name('medical-certificates.store');
         });
+
+    Route::get('medical-certificates/{justification}/document', [MedicalCertificateController::class, 'download'])
+        ->name('medical-certificates.download');
 
     Route::prefix('personnel')->name('personnel.')->middleware('permission:time-records.manage')->group(function () {
         Route::get('time-card-settings', [TimeCardSettingsController::class, 'index'])->name('time-card-settings.index');
@@ -96,6 +108,16 @@ Route::middleware($authenticatedMiddleware)->group(function () {
         Route::put('time-card-settings/groups/{group}', [TimeCardSettingsController::class, 'update'])->name('time-card-settings.groups.update');
         Route::delete('time-card-settings/groups/{group}', [TimeCardSettingsController::class, 'destroy'])->name('time-card-settings.groups.destroy');
         Route::post('time-card-settings/assignments', [TimeCardSettingsController::class, 'assign'])->name('time-card-settings.assignments.store');
+        Route::post('holidays', [HolidayController::class, 'store'])->name('holidays.store');
+    });
+
+    Route::prefix('personnel')->name('personnel.')->middleware('permission:time-records.approve|medical-certificates.review')->group(function () {
+        Route::get('time-approvals', [TimeApprovalController::class, 'index'])->name('time-approvals.index');
+        Route::patch('time-approvals/{adjustment}', [TimeApprovalController::class, 'update'])->name('time-approvals.update');
+        Route::patch('time-entries/{entry}', [TimeEntryReviewController::class, 'update'])->name('time-entries.update');
+        Route::post('work-schedule-exceptions', [WorkScheduleExceptionController::class, 'store'])->name('work-schedule-exceptions.store');
+        Route::delete('work-schedule-exceptions/{exception}', [WorkScheduleExceptionController::class, 'destroy'])->name('work-schedule-exceptions.destroy');
+        Route::patch('medical-certificates/{justification}', [MedicalCertificateReviewController::class, 'update'])->name('medical-certificates.update');
     });
 });
 

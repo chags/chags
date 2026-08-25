@@ -43,6 +43,21 @@ type Props = {
         tracksTimeUsers: number;
         unassignedUsers: number;
     };
+    companies: Array<{
+        id: number;
+        unit_name: string;
+        city: string;
+        state: string;
+    }>;
+    holidays: Array<{
+        id: number;
+        name: string;
+        holiday_date: string;
+        scope: string;
+        starts_at: string | null;
+        ends_at: string | null;
+        company: { id: number; unit_name: string } | null;
+    }>;
 };
 
 const week = [
@@ -105,7 +120,13 @@ const defaultDays = (type: string): Day[] => {
     }));
 };
 
-export default function TimeCardSettings({ groups, users, metrics }: Props) {
+export default function TimeCardSettings({
+    groups,
+    users,
+    metrics,
+    companies,
+    holidays,
+}: Props) {
     const dialog = useRef<HTMLDialogElement>(null);
     const [editing, setEditing] = useState<Group | null>(null);
     const [type, setType] = useState('5x2');
@@ -213,6 +234,35 @@ export default function TimeCardSettings({ groups, users, metrics }: Props) {
             setBusy(false);
         }
     };
+    const saveHoliday = async (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        setBusy(true);
+        setMessage('');
+        const form = event.currentTarget;
+        const values = Object.fromEntries(new FormData(form));
+
+        try {
+            const data = await request('/personnel/holidays', 'POST', {
+                ...values,
+                company_id: values.company_id || null,
+                state: values.state || null,
+                city: values.city || null,
+                starts_at: values.starts_at || null,
+                ends_at: values.ends_at || null,
+            });
+            setMessage(data.message);
+            form.reset();
+            router.reload({ only: ['holidays'] });
+        } catch (error) {
+            setMessage(
+                error instanceof Error
+                    ? error.message
+                    : 'Erro ao cadastrar feriado.',
+            );
+        } finally {
+            setBusy(false);
+        }
+    };
 
     return (
         <>
@@ -252,6 +302,162 @@ export default function TimeCardSettings({ groups, users, metrics }: Props) {
                         value={metrics.unassignedUsers}
                         icon={UsersRound}
                     />
+                </section>
+                <section className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
+                    <form
+                        onSubmit={saveHoliday}
+                        className="card border border-base-300 bg-base-100 shadow-sm"
+                    >
+                        <div className="card-body">
+                            <h2 className="card-title">Cadastrar feriado</h2>
+                            <div className="grid gap-3 sm:grid-cols-2">
+                                <label className="fieldset sm:col-span-2">
+                                    <span className="fieldset-legend">
+                                        Nome
+                                    </span>
+                                    <input
+                                        name="name"
+                                        className="input w-full"
+                                        required
+                                    />
+                                </label>
+                                <label className="fieldset">
+                                    <span className="fieldset-legend">
+                                        Data
+                                    </span>
+                                    <input
+                                        name="holiday_date"
+                                        type="date"
+                                        className="input w-full"
+                                        required
+                                    />
+                                </label>
+                                <label className="fieldset">
+                                    <span className="fieldset-legend">
+                                        Abrangência
+                                    </span>
+                                    <select
+                                        name="scope"
+                                        className="select w-full"
+                                        required
+                                    >
+                                        <option value="company">Empresa</option>
+                                        <option value="national">
+                                            Nacional
+                                        </option>
+                                        <option value="state">Estadual</option>
+                                        <option value="municipal">
+                                            Municipal
+                                        </option>
+                                    </select>
+                                </label>
+                                <label className="fieldset sm:col-span-2">
+                                    <span className="fieldset-legend">
+                                        Unidade
+                                    </span>
+                                    <select
+                                        name="company_id"
+                                        className="select w-full"
+                                    >
+                                        <option value="">
+                                            Todas as unidades aplicáveis
+                                        </option>
+                                        {companies.map((company) => (
+                                            <option
+                                                key={company.id}
+                                                value={company.id}
+                                            >
+                                                {company.unit_name} —{' '}
+                                                {company.city}/{company.state}
+                                            </option>
+                                        ))}
+                                    </select>
+                                </label>
+                                <label className="fieldset">
+                                    <span className="fieldset-legend">
+                                        UF (opcional)
+                                    </span>
+                                    <input
+                                        name="state"
+                                        maxLength={2}
+                                        className="input w-full uppercase"
+                                    />
+                                </label>
+                                <label className="fieldset">
+                                    <span className="fieldset-legend">
+                                        Cidade (opcional)
+                                    </span>
+                                    <input
+                                        name="city"
+                                        className="input w-full"
+                                    />
+                                </label>
+                                <label className="fieldset">
+                                    <span className="fieldset-legend">
+                                        Início parcial
+                                    </span>
+                                    <input
+                                        name="starts_at"
+                                        type="time"
+                                        className="input w-full"
+                                    />
+                                </label>
+                                <label className="fieldset">
+                                    <span className="fieldset-legend">
+                                        Fim parcial
+                                    </span>
+                                    <input
+                                        name="ends_at"
+                                        type="time"
+                                        className="input w-full"
+                                    />
+                                </label>
+                            </div>
+                            <div className="card-actions justify-end">
+                                <button
+                                    className="btn btn-primary"
+                                    disabled={busy}
+                                >
+                                    Cadastrar feriado
+                                </button>
+                            </div>
+                        </div>
+                    </form>
+                    <div className="card border border-base-300 bg-base-100 shadow-sm">
+                        <div className="card-body">
+                            <h2 className="card-title">Feriados cadastrados</h2>
+                            <div className="overflow-x-auto">
+                                <table className="table table-zebra">
+                                    <thead>
+                                        <tr>
+                                            <th>Data</th>
+                                            <th>Nome</th>
+                                            <th>Aplicação</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {holidays.map((holiday) => (
+                                            <tr key={holiday.id}>
+                                                <td>
+                                                    {new Date(
+                                                        `${holiday.holiday_date}T12:00:00`,
+                                                    ).toLocaleDateString(
+                                                        'pt-BR',
+                                                    )}
+                                                </td>
+                                                <td>{holiday.name}</td>
+                                                <td>
+                                                    {holiday.company
+                                                        ?.unit_name ??
+                                                        holiday.scope}
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
                 </section>
                 {message && <div className="alert alert-info">{message}</div>}
                 <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">

@@ -8,7 +8,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['user_id', 'recorded_at', 'type', 'source', 'notes', 'ip_address', 'created_by'])]
+#[Fillable(['user_id', 'recorded_at', 'type', 'source', 'status', 'reason', 'notes', 'ip_address', 'created_by', 'time_adjustment_request_id', 'reviewed_by', 'reviewed_at', 'review_notes'])]
 class TimeEntry extends Model
 {
     /** @use HasFactory<TimeEntryFactory> */
@@ -16,7 +16,7 @@ class TimeEntry extends Model
 
     protected function casts(): array
     {
-        return ['recorded_at' => 'immutable_datetime'];
+        return ['recorded_at' => 'immutable_datetime', 'reviewed_at' => 'immutable_datetime'];
     }
 
     public function user(): BelongsTo
@@ -27,5 +27,15 @@ class TimeEntry extends Model
     public function creator(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by');
+    }
+
+    public function adjustmentRequest(): BelongsTo
+    {
+        return $this->belongsTo(TimeAdjustmentRequest::class, 'time_adjustment_request_id');
+    }
+
+    public function reviewer(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by');
     }
 }

@@ -1,3 +1,4 @@
+import { router } from '@inertiajs/react';
 import { CheckCircle2, Clock3, FileClock, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
@@ -6,7 +7,12 @@ type EntryType = 'clock_in' | 'break_start' | 'break_end' | 'clock_out';
 type AdjustmentType = EntryType | 'overtime_start' | 'overtime_end';
 type Status = {
     nextType: EntryType | null;
-    entries: Array<{ type: EntryType; time: string }>;
+    entries: Array<{
+        type: EntryType;
+        time: string;
+        status: 'approved' | 'pending' | 'cancelled';
+        reason: string | null;
+    }>;
     pendingAdjustments: Array<{
         id: number;
         date: string;
@@ -25,6 +31,16 @@ const labels: Record<AdjustmentType, string> = {
 const csrfToken = () =>
     document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
         ?.content ?? '';
+const statusLabels = {
+    approved: 'Aprovada',
+    pending: 'Pendente',
+    cancelled: 'Cancelada',
+};
+const statusClasses = {
+    approved: 'border-success/40 bg-success/15 text-success',
+    pending: 'border-warning/40 bg-warning/15 text-warning',
+    cancelled: 'border-error/40 bg-error/15 text-error',
+};
 
 export function TimePunchModal() {
     const dialog = useRef<HTMLDialogElement>(null);
@@ -34,9 +50,13 @@ export function TimePunchModal() {
     const [success, setSuccess] = useState('');
     const [error, setError] = useState('');
     const [adjusting, setAdjusting] = useState(false);
+    const [lastStatus, setLastStatus] = useState<
+        'approved' | 'pending' | 'cancelled' | null
+    >(null);
 
     useEffect(() => {
         const timer = window.setInterval(() => setNow(new Date()), 1000);
+
         return () => window.clearInterval(timer);
     }, []);
 
@@ -49,10 +69,13 @@ export function TimePunchModal() {
             },
         });
         const data = await response.json();
-        if (!response.ok)
+
+        if (!response.ok) {
             throw new Error(
                 data.message ?? 'Não foi possível registrar o ponto.',
             );
+        }
+
         return data;
     };
 
@@ -61,7 +84,9 @@ export function TimePunchModal() {
         setSuccess('');
         setError('');
         setAdjusting(false);
+        setLastStatus(null);
         dialog.current?.showModal();
+
         try {
             setStatus(await request('GET'));
         } catch (reason) {
@@ -75,15 +100,29 @@ export function TimePunchModal() {
         }
     };
 
+    const refreshTimeCard = () => {
+        if (window.location.pathname === '/virtual-office/time-card') {
+            router.reload({ only: ['timeCard'] });
+        }
+    };
+
+    const close = () => {
+        dialog.current?.close();
+        refreshTimeCard();
+    };
+
     const punch = async () => {
         setLoading(true);
         setError('');
+
         try {
             const data = await request('POST');
             setStatus(data);
+            setLastStatus(data.status);
             setSuccess(
                 `${data.message} ${labels[data.registeredType as EntryType]} às ${data.registeredAt}.`,
             );
+            refreshTimeCard();
         } catch (reason) {
             setError(
                 reason instanceof Error
@@ -118,6 +157,7 @@ export function TimePunchModal() {
                 }),
             });
             const data = await response.json();
+
             if (!response.ok) {
                 throw new Error(
                     data.errors
@@ -125,9 +165,12 @@ export function TimePunchModal() {
                         : data.message,
                 );
             }
+
             setSuccess(data.message);
+            setLastStatus('pending');
             setAdjusting(false);
             setStatus(await request('GET'));
+            refreshTimeCard();
         } catch (reason) {
             setError(
                 reason instanceof Error
@@ -163,12 +206,12 @@ export function TimePunchModal() {
                 <span>Ponto</span>
             </button>
             <dialog ref={dialog} className="modal">
-                <div className="modal-box overflow-hidden p-0 sm:max-w-md">
+                <div className="modal-box max-h-[calc(100vh-2rem)] overflow-y-auto p-0 sm:max-w-md">
                     <div className="relative bg-gradient-to-br from-primary to-secondary px-6 pt-6 pb-16 text-center text-primary-content">
                         <button
                             type="button"
                             className="btn absolute top-3 right-3 btn-circle btn-ghost btn-sm"
-                            onClick={() => dialog.current?.close()}
+                            onClick={close}
                             aria-label="Fechar"
                         >
                             <X className="size-5" />
@@ -313,12 +356,30 @@ export function TimePunchModal() {
                                         </div>
                                     </form>
                                 ) : success ? (
-                                    <div
-                                        role="alert"
-                                        className="mt-2 alert text-left text-sm alert-success"
-                                    >
-                                        <CheckCircle2 className="size-5" />
-                                        <span>{success}</span>
+                                    <div className="mt-2 w-full space-y-3">
+                                        <div
+                                            role="alert"
+                                            className={`alert text-left text-sm ${lastStatus === 'cancelled' ? 'alert-error' : lastStatus === 'pending' ? 'alert-warning' : 'alert-success'}`}
+                                        >
+                                            <CheckCircle2 className="size-5" />
+                                            <div>
+                                                <p className="font-semibold">
+                                                    {lastStatus
+                                                        ? statusLabels[
+                                                              lastStatus
+                                                          ]
+                                                        : 'Registrada'}
+                                                </p>
+                                                <span>{success}</span>
+                                            </div>
+                                        </div>
+                                        <button
+                                            type="button"
+                                            className="btn w-full btn-primary"
+                                            onClick={close}
+                                        >
+                                            Concluir e fechar
+                                        </button>
                                     </div>
                                 ) : (
                                     <>
@@ -341,43 +402,62 @@ export function TimePunchModal() {
                                     </div>
                                 )}
                                 {!adjusting && status?.entries.length ? (
-                                    <div className="mt-2 flex flex-wrap justify-center gap-2">
-                                        {status.entries.map((entry) => (
-                                            <span
-                                                key={entry.type}
-                                                className="badge badge-outline"
+                                    <div className="mt-3 grid w-full gap-2">
+                                        {status.entries.map((entry, index) => (
+                                            <div
+                                                key={`${entry.type}-${entry.time}-${index}`}
+                                                className={`flex w-full items-center justify-between gap-4 rounded-box border px-4 py-3 text-left ${statusClasses[entry.status]}`}
                                             >
-                                                {labels[entry.type]} ·{' '}
-                                                {entry.time}
-                                            </span>
+                                                <div>
+                                                    <p className="text-xs font-bold tracking-wide uppercase">
+                                                        {labels[entry.type]}
+                                                    </p>
+                                                    <p className="text-xs opacity-75">
+                                                        {
+                                                            statusLabels[
+                                                                entry.status
+                                                            ]
+                                                        }
+                                                    </p>
+                                                </div>
+                                                <strong className="font-mono text-xl">
+                                                    {entry.time}
+                                                </strong>
+                                            </div>
                                         ))}
                                     </div>
                                 ) : null}
-                                <button
-                                    type="button"
-                                    className={`btn mt-3 w-full btn-primary ${adjusting ? 'hidden' : ''}`}
-                                    disabled={loading || !status?.nextType}
-                                    onClick={punch}
-                                >
-                                    {loading && (
-                                        <span className="loading loading-sm loading-spinner" />
-                                    )}
-                                    {status?.nextType
-                                        ? `Registrar ${labels[status.nextType].toLocaleLowerCase('pt-BR')}`
-                                        : 'Ponto concluído hoje'}
-                                </button>
-                                <button
-                                    type="button"
-                                    className={`btn mt-1 w-full gap-2 btn-outline ${adjusting ? 'hidden' : ''}`}
-                                    onClick={() => {
-                                        setAdjusting(true);
-                                        setSuccess('');
-                                        setError('');
-                                    }}
-                                >
-                                    <FileClock className="size-4" /> Ajuste de
-                                    ponto
-                                </button>
+                                {!success && (
+                                    <>
+                                        <button
+                                            type="button"
+                                            className={`btn mt-3 w-full btn-primary ${adjusting ? 'hidden' : ''}`}
+                                            disabled={
+                                                loading || !status?.nextType
+                                            }
+                                            onClick={punch}
+                                        >
+                                            {loading && (
+                                                <span className="loading loading-sm loading-spinner" />
+                                            )}
+                                            {status?.nextType
+                                                ? `Registrar ${labels[status.nextType].toLocaleLowerCase('pt-BR')}`
+                                                : 'Ponto concluído hoje'}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            className={`btn mt-1 w-full gap-2 btn-outline ${adjusting ? 'hidden' : ''}`}
+                                            onClick={() => {
+                                                setAdjusting(true);
+                                                setSuccess('');
+                                                setError('');
+                                            }}
+                                        >
+                                            <FileClock className="size-4" />{' '}
+                                            Ajuste de ponto
+                                        </button>
+                                    </>
+                                )}
                                 {!adjusting &&
                                 status?.pendingAdjustments.length ? (
                                     <div className="mt-3 w-full rounded-box border border-warning/40 bg-warning/10 p-3 text-left">
