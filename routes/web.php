@@ -113,6 +113,7 @@ Route::middleware($authenticatedMiddleware)->group(function () {
 
     Route::prefix('personnel')->name('personnel.')->middleware('permission:time-records.approve|medical-certificates.review')->group(function () {
         Route::get('time-approvals', [TimeApprovalController::class, 'index'])->name('time-approvals.index');
+        Route::get('time-approvals/employees/{employee}/time-card', [TimeApprovalController::class, 'timeCard'])->name('time-approvals.time-card');
         Route::patch('time-approvals/{adjustment}', [TimeApprovalController::class, 'update'])->name('time-approvals.update');
         Route::patch('time-entries/{entry}', [TimeEntryReviewController::class, 'update'])->name('time-entries.update');
         Route::post('work-schedule-exceptions', [WorkScheduleExceptionController::class, 'store'])->name('work-schedule-exceptions.store');

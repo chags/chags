@@ -25,7 +25,22 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         Gate::before(
-            fn ($user): ?bool => $user->hasRole('super-admin') ? true : null,
+            function ($user, string $ability): ?bool {
+                if ($user->hasRole('super-admin')) {
+                    return true;
+                }
+
+                if ($user->tracks_time && in_array($ability, [
+                    'intranet.access',
+                    'time-records.view-own',
+                    'time-records.request-adjustment',
+                    'medical-certificates.submit',
+                ], true)) {
+                    return true;
+                }
+
+                return null;
+            },
         );
 
         $this->configureDefaults();

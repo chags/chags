@@ -2,6 +2,7 @@
 
 use App\Models\User;
 use App\Models\WorkScheduleGroup;
+use Database\Seeders\RolesAndPermissionsSeeder;
 use Database\Seeders\SuperAdminSeeder;
 use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\UploadedFile;
@@ -155,4 +156,39 @@ test('an administrator cannot impersonate another user', function () {
         ->assertForbidden();
 
     $this->assertAuthenticatedAs($administrator);
+});
+
+test('a super admin can impersonate a time tracking personnel user and access the virtual office', function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
+    $superAdmin = User::factory()->create();
+    $superAdmin->assignRole('super-admin');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('dp-analista');
+
+    $this->actingAs($superAdmin)
+        ->post("/users/{$employee->id}/impersonate")
+        ->assertRedirect('/dashboard')
+        ->assertSessionHas('impersonation.original_user_id', $superAdmin->id);
+
+    $this->get('/virtual-office')->assertOk();
+    $this->getJson('/virtual-office/time-punch')
+        ->assertOk()
+        ->assertJsonPath('nextType', 'clock_in');
+});
+
+test('a time tracking user can access and register time regardless of role', function () {
+    $this->seed(RolesAndPermissionsSeeder::class);
+    $superAdmin = User::factory()->create();
+    $superAdmin->assignRole('super-admin');
+    $employee = User::factory()->create(['tracks_time' => true]);
+
+    $this->actingAs($superAdmin)
+        ->post("/users/{$employee->id}/impersonate")
+        ->assertRedirect('/dashboard');
+
+    $this->get('/virtual-office')->assertOk();
+    $this->get('/virtual-office/time-card')->assertOk();
+    $this->getJson('/virtual-office/time-punch')
+        ->assertOk()
+        ->assertJsonPath('nextType', 'clock_in');
 });

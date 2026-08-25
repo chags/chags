@@ -275,7 +275,34 @@ test('a manager sees only time adjustments from direct reports', function () {
         ->assertInertia(fn (Assert $page) => $page
             ->component('personnel/time-approvals/index')
             ->has('adjustments.data', 1)
-            ->where('adjustments.data.0.employee.id', $directReport->id));
+            ->where('adjustments.data.0.employee.id', $directReport->id)
+            ->has('employeesWithPending', 1)
+            ->where('employeesWithPending.0.id', $directReport->id)
+            ->where('employeesWithPending.0.pendingCount', 1));
+});
+
+test('a manager can open the current time card of a direct report', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+    $directReport = User::factory()->create(['tracks_time' => true]);
+    $directReport->assignRole('colaborador');
+    createEmployee($directReport)->update(['manager_id' => $manager->id]);
+    $outsideTeam = User::factory()->create(['tracks_time' => true]);
+    $outsideTeam->assignRole('colaborador');
+    createEmployee($outsideTeam);
+
+    $this->actingAs($manager)
+        ->get("/personnel/time-approvals/employees/{$directReport->id}/time-card")
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('virtual-office/time-card/index')
+            ->where('employeeName', $directReport->name)
+            ->where('managedView', true)
+            ->where('canRequestAdjustment', false));
+
+    $this->actingAs($manager)
+        ->get("/personnel/time-approvals/employees/{$outsideTeam->id}/time-card")
+        ->assertForbidden();
 });
 
 test('a manager can approve a direct report manual time adjustment', function () {

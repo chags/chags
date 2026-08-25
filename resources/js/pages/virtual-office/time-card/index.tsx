@@ -58,6 +58,8 @@ type Props = {
     };
     canRequestAdjustment: boolean;
     canSubmitMedicalCertificate: boolean;
+    employeeName?: string;
+    managedView?: boolean;
 };
 
 const entryTypes = [
@@ -103,6 +105,8 @@ export default function TimeCardIndex({
     timeCard,
     canRequestAdjustment,
     canSubmitMedicalCertificate,
+    employeeName,
+    managedView = false,
 }: Props) {
     const dialog = useRef<HTMLDialogElement>(null);
     const [selected, setSelected] = useState<Day | null>(null);
@@ -118,7 +122,9 @@ export default function TimeCardIndex({
         const value = `${target.getUTCFullYear()}-${String(target.getUTCMonth() + 1).padStart(2, '0')}`;
 
         router.get(
-            '/virtual-office/time-card',
+            managedView
+                ? window.location.pathname
+                : '/virtual-office/time-card',
             { month: value },
             { preserveState: true },
         );
@@ -227,7 +233,13 @@ export default function TimeCardIndex({
 
     return (
         <>
-            <Head title="Cartão de Ponto" />
+            <Head
+                title={
+                    employeeName
+                        ? `Cartão de Ponto — ${employeeName}`
+                        : 'Cartão de Ponto'
+                }
+            />
             <main className="app-page gap-6">
                 <section className="flex flex-wrap items-end justify-between gap-4">
                     <div>
@@ -235,11 +247,14 @@ export default function TimeCardIndex({
                             Escritório Virtual
                         </p>
                         <h1 className="mt-1 text-3xl font-bold">
-                            Cartão de Ponto
+                            {employeeName
+                                ? `Cartão de Ponto — ${employeeName}`
+                                : 'Cartão de Ponto'}
                         </h1>
                         <p className="mt-2 text-base-content/60">
-                            Consulte sua jornada e solicite correções quando
-                            necessário.
+                            {managedView
+                                ? 'Consulte a jornada e os apontamentos deste colaborador.'
+                                : 'Consulte sua jornada e solicite correções quando necessário.'}
                         </p>
                     </div>
                     <div className="join">

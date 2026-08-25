@@ -10,6 +10,8 @@ use App\Models\TimeEntry;
 use App\Models\User;
 use App\Models\WorkScheduleException;
 use App\Services\VirtualOffice\TimeAdjustmentApprovalService;
+use App\Services\VirtualOffice\TimeCardService;
+use Carbon\CarbonImmutable;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
@@ -129,6 +131,60 @@ class TimeApprovalController extends Controller
                 'reason' => $entry->reason,
             ]);
 
+        $employeesWithPending = User::query()
+            ->where('tracks_time', true)
+            ->when(! $canApproveTime, fn (Builder $query) => $query->whereRaw('1 = 0'))
+            ->when(! $this->canReviewAll($reviewer), fn (Builder $query) => $query->whereHas(
+                'employeeProfile',
+                fn (Builder $profile) => $profile->where('manager_id', $reviewer->id),
+            ))
+            ->where(function (Builder $query): void {
+                $query->whereHas('timeAdjustmentRequests', fn (Builder $adjustments) => $adjustments->where('status', 'pending'))
+                    ->orWhereHas('timeEntries', fn (Builder $entries) => $entries->where('status', 'pending'));
+            })
+            ->with([
+                'employeeProfile.department:id,name',
+                'timeAdjustmentRequests' => fn ($query) => $query->where('status', 'pending')->oldest('work_date'),
+                'timeEntries' => fn ($query) => $query->where('status', 'pending')->oldest('recorded_at'),
+            ])
+            ->orderBy('name')
+            ->get()
+            ->map(function (User $employee) {
+                $adjustments = $employee->timeAdjustmentRequests->map(fn (TimeAdjustmentRequest $adjustment) => [
+                    'id' => $adjustment->id,
+                    'kind' => 'adjustment',
+                    'date' => $adjustment->work_date->format('Y-m-d'),
+                    'entries' => collect($adjustment->requested_entries)->map(fn (array $entry) => [
+                        'type' => $entry['type'],
+                        'time' => $entry['time'],
+                    ])->values()->all(),
+                    'reason' => $adjustment->reason,
+                    'source' => 'manual',
+                    'status' => 'pending',
+                ]);
+                $timeEntries = $employee->timeEntries->map(function (TimeEntry $entry) {
+                    $localTime = $entry->recorded_at->setTimezone(config('app.business_timezone'));
+
+                    return [
+                        'id' => $entry->id,
+                        'kind' => 'time_entry',
+                        'date' => $localTime->format('Y-m-d'),
+                        'entries' => [['type' => $entry->type, 'time' => $localTime->format('H:i')]],
+                        'reason' => $entry->reason,
+                        'source' => $entry->source,
+                        'status' => $entry->status,
+                    ];
+                });
+
+                return [
+                    'id' => $employee->id,
+                    'name' => $employee->name,
+                    'department' => $employee->employeeProfile?->department?->name,
+                    'pendingCount' => $adjustments->count() + $timeEntries->count(),
+                    'items' => $adjustments->concat($timeEntries)->sortBy('date')->values()->all(),
+                ];
+            });
+
         return Inertia::render('personnel/time-approvals/index', [
             'adjustments' => $adjustments,
             'employees' => $employees,
@@ -136,6 +192,26 @@ class TimeApprovalController extends Controller
             'medicalCertificates' => $medicalCertificates,
             'canApproveTime' => $canApproveTime,
             'pendingTimeEntries' => $pendingTimeEntries,
+            'employeesWithPending' => $employeesWithPending,
+        ]);
+    }
+
+    public function timeCard(Request $request, User $employee, TimeCardService $timeCardService): Response
+    {
+        abort_unless($request->user()->can('time-records.approve'), 403);
+        abort_unless($this->canAccessEmployee($request->user(), $employee), 403);
+        abort_unless($employee->tracks_time, 422, 'Este colaborador não registra ponto.');
+        $validated = $request->validate(['month' => ['nullable', 'date_format:Y-m']]);
+        $month = isset($validated['month'])
+            ? CarbonImmutable::createFromFormat('!Y-m', $validated['month'])
+            : CarbonImmutable::now(config('app.business_timezone'))->startOfMonth();
+
+        return Inertia::render('virtual-office/time-card/index', [
+            'timeCard' => $timeCardService->forMonth($employee, $month),
+            'canRequestAdjustment' => false,
+            'canSubmitMedicalCertificate' => false,
+            'employeeName' => $employee->name,
+            'managedView' => true,
         ]);
     }
 
@@ -186,6 +262,17 @@ class TimeApprovalController extends Controller
             'employeeProfile',
             fn (Builder $profile) => $profile->where('manager_id', $reviewer->id),
         )->exists();
+    }
+
+    private function canAccessEmployee(User $reviewer, User $employee): bool
+    {
+        if ($this->canReviewAll($reviewer)) {
+            return true;
+        }
+
+        return $employee->employeeProfile()
+            ->where('manager_id', $reviewer->id)
+            ->exists();
     }
 
     private function canReviewAll(User $reviewer): bool
