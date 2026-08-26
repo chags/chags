@@ -67,6 +67,8 @@ class DeviceIdentityService {
       });
       await store.saveDeviceId(registered['id'] as String);
       _log('registration.success', 'Dispositivo registrado com sucesso.');
+    } on ApiException {
+      rethrow;
     } on DeviceProtectionException {
       rethrow;
     } catch (error, stackTrace) {
@@ -135,7 +137,9 @@ class DeviceIdentityService {
         'os_version': value.systemVersion,
         'security_patch': null,
         'locale': Platform.localeName.replaceAll('_', '-'),
-        'timezone': DateTime.now().timeZoneName,
+        // O Dart pode retornar abreviações/offsets (ex.: "-03"), que não são
+        // identificadores IANA válidos para a regra `timezone` do Laravel.
+        'timezone': null,
         'biometric_available': true,
       };
     }
@@ -147,7 +151,7 @@ class DeviceIdentityService {
       'os_version': value.version.release,
       'security_patch': value.version.securityPatch,
       'locale': Platform.localeName.replaceAll('_', '-'),
-      'timezone': DateTime.now().timeZoneName,
+      'timezone': null,
       'biometric_available': true,
     };
   }

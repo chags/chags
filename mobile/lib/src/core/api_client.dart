@@ -16,7 +16,14 @@ class ApiException implements Exception {
 
 class ApiClient {
   ApiClient(this.session)
-    : dio = Dio(BaseOptions(baseUrl: AppConfig.apiBaseUrl));
+    : dio = Dio(
+        BaseOptions(
+          baseUrl: AppConfig.apiBaseUrl,
+          connectTimeout: const Duration(seconds: 15),
+          sendTimeout: const Duration(seconds: 20),
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+      );
   final SessionStore session;
   final Dio dio;
 
@@ -157,6 +164,12 @@ class ApiClient {
           (body['errors'] as Map).isNotEmpty) {
         final first = (body['errors'] as Map).values.first;
         if (first is List && first.isNotEmpty) message = first.first.toString();
+      }
+      if (error.type == DioExceptionType.connectionTimeout ||
+          error.type == DioExceptionType.sendTimeout ||
+          error.type == DioExceptionType.receiveTimeout) {
+        message =
+            'O servidor demorou para responder. Tente novamente em instantes.';
       }
       developer.log(
         'Falha HTTP ${error.requestOptions.method} '
