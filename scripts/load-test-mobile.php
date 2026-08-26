@@ -15,8 +15,17 @@ $concurrency = max(1, min($total, (int) ($argv[2] ?? 50)));
 $baseUrl = rtrim($argv[3] ?? 'http://nginx/api/v1', '/');
 $identityCount = max(1, min($total, (int) ($argv[4] ?? 1)));
 $scenario = $argv[5] ?? 'status';
+$resolveIp = $argv[6] ?? null;
 if (! in_array($scenario, ['status', 'startup', 'punch'], true)) {
     throw new InvalidArgumentException('O cenário deve ser status, startup ou punch.');
+}
+if ($resolveIp !== null && filter_var($resolveIp, FILTER_VALIDATE_IP) === false) {
+    throw new InvalidArgumentException('O IP de resolução local informado é inválido.');
+}
+$baseHost = parse_url($baseUrl, PHP_URL_HOST);
+$basePort = parse_url($baseUrl, PHP_URL_PORT) ?? (parse_url($baseUrl, PHP_URL_SCHEME) === 'https' ? 443 : 80);
+if ($resolveIp !== null && ! is_string($baseHost)) {
+    throw new InvalidArgumentException('A URL base precisa conter um host válido.');
 }
 $marker = 'load-test-'.Illuminate\Support\Str::uuid();
 
@@ -87,6 +96,9 @@ try {
                 CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_TIMEOUT => 15,
             ];
+            if ($resolveIp !== null) {
+                $options[CURLOPT_RESOLVE] = ["{$baseHost}:{$basePort}:{$resolveIp}"];
+            }
             if ($scenario === 'punch') {
                 $requestHeaders[] = 'Content-Type: application/json';
                 $requestHeaders[] = 'Idempotency-Key: load-punch-'.$marker.'-'.$requestNumber;
@@ -147,6 +159,7 @@ try {
         'requests' => $total,
         'concurrency' => $concurrency,
         'identities' => $identityCount,
+        'resolve_ip' => $resolveIp,
         'duration_seconds' => round($elapsedSeconds, 3),
         'requests_per_second' => round($total / $elapsedSeconds, 2),
         'latency_ms' => [
