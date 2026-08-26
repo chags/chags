@@ -101,10 +101,16 @@ try {
 
         do {
             $result = curl_multi_exec($multi, $running);
-            if ($running) {
-                curl_multi_select($multi, 1.0);
+            if ($result !== CURLM_OK) {
+                throw new RuntimeException('Falha interna no curl_multi: '.curl_multi_strerror($result));
             }
-        } while ($running && $result === CURLM_OK);
+            if ($running) {
+                $selected = curl_multi_select($multi, 1.0);
+                if ($selected === -1) {
+                    usleep(1_000);
+                }
+            }
+        } while ($running);
 
         foreach ($handles as $handle) {
             $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
