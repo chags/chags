@@ -38,15 +38,22 @@ export default function MessagesIndex({ messages, filter }: Props) {
         router.reload();
     };
     const remove = async (message: Message) => {
-        if (!message.readAt) return;
+        if (!message.readAt) {
+return;
+}
+
         if (!confirm(`Excluir “${message.title}” da sua caixa de mensagens?`)) {
             return;
         }
+
         const response = await fetch(`/mensagens/${message.id}`, {
             method: 'DELETE',
             headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
         });
-        if (response.ok) router.reload();
+
+        if (response.ok) {
+router.reload();
+}
     };
 
     return (
