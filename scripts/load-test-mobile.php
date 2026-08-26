@@ -128,11 +128,20 @@ try {
             }
         } while ($running);
 
+        $multiResults = [];
+        while (($info = curl_multi_info_read($multi)) !== false) {
+            $multiResults[spl_object_id($info['handle'])] = $info['result'];
+        }
+
         foreach ($handles as $handle) {
             $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
-            $curlErrorNumber = curl_errno($handle);
+            $curlErrorNumber = $multiResults[spl_object_id($handle)] ?? curl_errno($handle);
             if ($curlErrorNumber !== 0) {
-                $curlErrorKey = $curlErrorNumber.': '.curl_error($handle);
+                $curlErrorMessage = curl_error($handle);
+                if ($curlErrorMessage === '') {
+                    $curlErrorMessage = curl_strerror($curlErrorNumber);
+                }
+                $curlErrorKey = $curlErrorNumber.': '.$curlErrorMessage;
                 $curlErrors[$curlErrorKey] = ($curlErrors[$curlErrorKey] ?? 0) + 1;
             } elseif ($status === 0) {
                 $curlErrorKey = '0: transferência encerrada sem resposta HTTP';
