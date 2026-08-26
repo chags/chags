@@ -95,6 +95,7 @@ try {
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_CONNECTTIMEOUT => 5,
                 CURLOPT_TIMEOUT => 15,
+                CURLOPT_HTTP_VERSION => CURL_HTTP_VERSION_1_1,
             ];
             if ($resolveIp !== null) {
                 $options[CURLOPT_RESOLVE] = ["{$baseHost}:{$basePort}:{$resolveIp}"];
@@ -107,7 +108,10 @@ try {
             }
             $options[CURLOPT_HTTPHEADER] = $requestHeaders;
             curl_setopt_array($handle, $options);
-            curl_multi_add_handle($multi, $handle);
+            $addResult = curl_multi_add_handle($multi, $handle);
+            if ($addResult !== CURLM_OK) {
+                throw new RuntimeException('Falha ao adicionar handle ao curl_multi: '.curl_multi_strerror($addResult));
+            }
             $handles[] = $handle;
         }
 
@@ -129,6 +133,9 @@ try {
             $curlErrorNumber = curl_errno($handle);
             if ($curlErrorNumber !== 0) {
                 $curlErrorKey = $curlErrorNumber.': '.curl_error($handle);
+                $curlErrors[$curlErrorKey] = ($curlErrors[$curlErrorKey] ?? 0) + 1;
+            } elseif ($status === 0) {
+                $curlErrorKey = '0: transferência encerrada sem resposta HTTP';
                 $curlErrors[$curlErrorKey] = ($curlErrors[$curlErrorKey] ?? 0) + 1;
             }
             $latencies[] = curl_getinfo($handle, CURLINFO_TOTAL_TIME) * 1000;
