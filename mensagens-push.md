@@ -48,6 +48,7 @@ Criar `/mensagens` com:
 - paginação;
 - detalhe da mensagem;
 - ação para marcar como lida/não lida;
+- exclusão da caixa pessoal somente depois de marcar a mensagem como lida;
 - estado vazio;
 - indicação clara de mensagem expirada;
 - ocultação do conteúdo sensível depois da expiração.
@@ -231,6 +232,7 @@ O scheduler deve executar no servidor por cron ou worker apropriado. A expiraç�
 ## Auditoria e privacidade
 
 - registrar criador, data de publicação, audiência e quantidade de destinatários;
+- registrar em auditoria toda exclusão feita pelo destinatário, sem armazenar conteúdo sensível no evento;
 - não registrar códigos, payloads sensíveis ou telefones completos;
 - métricas administrativas mostram apenas totais agregados;
 - impedir serialização acidental de `sensitive_payload` usando atributo oculto no model e Resource específico para o usuário;

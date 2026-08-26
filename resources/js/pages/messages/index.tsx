@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Bell, CheckCheck, Clipboard, MailOpen } from 'lucide-react';
+import { Bell, CheckCheck, Clipboard, MailOpen, Trash2 } from 'lucide-react';
 
 type Message = {
     id: string;
@@ -36,6 +36,17 @@ export default function MessagesIndex({ messages, filter }: Props) {
             headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
         });
         router.reload();
+    };
+    const remove = async (message: Message) => {
+        if (!message.readAt) return;
+        if (!confirm(`Excluir “${message.title}” da sua caixa de mensagens?`)) {
+            return;
+        }
+        const response = await fetch(`/mensagens/${message.id}`, {
+            method: 'DELETE',
+            headers: { Accept: 'application/json', 'X-CSRF-TOKEN': csrf() },
+        });
+        if (response.ok) router.reload();
     };
 
     return (
@@ -103,23 +114,35 @@ export default function MessagesIndex({ messages, filter }: Props) {
                                                 : ''}
                                         </p>
                                     </div>
-                                    <button
-                                        type="button"
-                                        className="btn btn-ghost btn-sm"
-                                        onClick={() =>
-                                            patch(
-                                                message.id,
-                                                message.readAt
-                                                    ? 'nao-lida'
-                                                    : 'lida',
-                                            )
-                                        }
-                                    >
-                                        <MailOpen className="size-4" />{' '}
-                                        {message.readAt
-                                            ? 'Marcar não lida'
-                                            : 'Marcar lida'}
-                                    </button>
+                                    <div className="flex flex-wrap justify-end gap-1">
+                                        <button
+                                            type="button"
+                                            className="btn btn-ghost btn-sm"
+                                            onClick={() =>
+                                                patch(
+                                                    message.id,
+                                                    message.readAt
+                                                        ? 'nao-lida'
+                                                        : 'lida',
+                                                )
+                                            }
+                                        >
+                                            <MailOpen className="size-4" />{' '}
+                                            {message.readAt
+                                                ? 'Marcar não lida'
+                                                : 'Marcar lida'}
+                                        </button>
+                                        {message.readAt && (
+                                            <button
+                                                type="button"
+                                                className="btn btn-ghost text-error btn-sm"
+                                                onClick={() => remove(message)}
+                                            >
+                                                <Trash2 className="size-4" />{' '}
+                                                Excluir
+                                            </button>
+                                        )}
+                                    </div>
                                 </div>
                                 {message.body && (
                                     <p className="whitespace-pre-wrap text-base-content/75">

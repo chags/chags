@@ -2,10 +2,13 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\InAppMessageAuditEvent;
 use App\Models\InAppMessageRecipient;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -48,6 +51,32 @@ class InAppMessageController extends Controller
         $recipient->update(['read_at' => null]);
 
         return response()->json(['message' => 'Mensagem marcada como não lida.']);
+    }
+
+    public function destroy(Request $request, InAppMessageRecipient $recipient): JsonResponse
+    {
+        abort_unless($recipient->user_id === $request->user()->id, 404);
+        abort_if(! $recipient->read_at, 422, 'Marque a mensagem como lida antes de excluí-la.');
+
+        DB::transaction(function () use ($request, $recipient): void {
+            $recipient->update(['dismissed_at' => now()]);
+
+            InAppMessageAuditEvent::query()->create([
+                'message_id' => $recipient->message_id,
+                'recipient_id' => $recipient->id,
+                'user_id' => $request->user()->id,
+                'event' => 'recipient_deleted',
+                'ip_address' => $request->ip(),
+            ]);
+        });
+
+        Log::notice('Mensagem interna removida pelo destinatário.', [
+            'message_id' => $recipient->message_id,
+            'recipient_id' => $recipient->id,
+            'user_id' => $request->user()->id,
+        ]);
+
+        return response()->json(['message' => 'Mensagem excluída da sua caixa.']);
     }
 
     public function readAll(Request $request): JsonResponse

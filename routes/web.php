@@ -84,6 +84,7 @@ Route::middleware($authenticatedMiddleware)->group(function () {
         Route::get('resumo', [InAppMessageController::class, 'summary'])->middleware('throttle:120,1')->name('summary');
         Route::patch('{recipient}/lida', [InAppMessageController::class, 'read'])->name('read');
         Route::patch('{recipient}/nao-lida', [InAppMessageController::class, 'unread'])->name('unread');
+        Route::delete('{recipient}', [InAppMessageController::class, 'destroy'])->name('destroy');
         Route::post('marcar-todas-lidas', [InAppMessageController::class, 'readAll'])->name('read-all');
     });
 

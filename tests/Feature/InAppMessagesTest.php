@@ -95,3 +95,29 @@ test('expired codes are not returned by the notification endpoint', function () 
         ->assertJsonPath('unreadCount', 0)
         ->assertJsonCount(0, 'messages');
 });
+
+test('a message can only be deleted after reading and records an audit event', function () {
+    $user = User::factory()->create();
+    grantMessagePermission($user, 'messages.view-own');
+    $message = InAppMessage::query()->create([
+        'type' => 'administrative', 'status' => 'sent', 'title' => 'Leia primeiro',
+        'body' => 'Conteúdo', 'audience' => 'user', 'published_at' => now(),
+    ]);
+    $recipient = $message->recipients()->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)->deleteJson("/mensagens/{$recipient->id}")
+        ->assertUnprocessable()
+        ->assertJsonPath('message', 'Marque a mensagem como lida antes de excluí-la.');
+
+    $this->actingAs($user)->patchJson("/mensagens/{$recipient->id}/lida")->assertOk();
+    $this->actingAs($user)->deleteJson("/mensagens/{$recipient->id}")->assertOk();
+
+    expect($recipient->refresh()->dismissed_at)->not->toBeNull();
+    $this->assertDatabaseHas('in_app_message_audit_events', [
+        'message_id' => $message->id,
+        'recipient_id' => $recipient->id,
+        'user_id' => $user->id,
+        'event' => 'recipient_deleted',
+    ]);
+    $this->actingAs($user)->getJson('/mensagens/resumo')->assertJsonCount(0, 'messages');
+});
