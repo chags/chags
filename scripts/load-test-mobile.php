@@ -58,6 +58,7 @@ try {
 
     $latencies = [];
     $statuses = [];
+    $curlErrors = [];
     $errors = 0;
     $startedAt = hrtime(true);
 
@@ -107,10 +108,15 @@ try {
 
         foreach ($handles as $handle) {
             $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
+            $curlErrorNumber = curl_errno($handle);
+            if ($curlErrorNumber !== 0) {
+                $curlErrorKey = $curlErrorNumber.': '.curl_error($handle);
+                $curlErrors[$curlErrorKey] = ($curlErrors[$curlErrorKey] ?? 0) + 1;
+            }
             $latencies[] = curl_getinfo($handle, CURLINFO_TOTAL_TIME) * 1000;
             $statuses[$status] = ($statuses[$status] ?? 0) + 1;
             $expectedStatus = $scenario === 'punch' ? 201 : 200;
-            if ($status !== $expectedStatus || curl_errno($handle) !== 0) {
+            if ($status !== $expectedStatus || $curlErrorNumber !== 0) {
                 $errors++;
             }
             curl_multi_remove_handle($multi, $handle);
@@ -145,6 +151,7 @@ try {
             'max' => round(max($latencies), 2),
         ],
         'http_statuses' => $statuses,
+        'curl_errors' => $curlErrors,
         'errors' => $errors,
     ], JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES).PHP_EOL;
 } finally {
