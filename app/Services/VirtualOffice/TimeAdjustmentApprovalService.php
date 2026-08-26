@@ -23,6 +23,10 @@ class TimeAdjustmentApprovalService
 
             $status = $decision === 'approve' ? 'approved' : 'cancelled';
 
+            if ($status === 'approved') {
+                $this->validateOvertime($adjustment);
+            }
+
             $adjustment->update([
                 'status' => $status,
                 'reviewed_by' => $reviewer->id,
@@ -37,6 +41,55 @@ class TimeAdjustmentApprovalService
 
             return $adjustment->refresh();
         });
+    }
+
+    private function validateOvertime(TimeAdjustmentRequest $adjustment): void
+    {
+        $requested = collect($adjustment->requested_entries)->keyBy('type');
+        if (! $requested->hasAny(['overtime_start', 'overtime_end'])) {
+            return;
+        }
+
+        $localDate = CarbonImmutable::parse($adjustment->work_date, config('app.business_timezone'));
+        $approvedEntries = $adjustment->user->timeEntries()
+            ->whereDate('work_date', $adjustment->work_date)
+            ->where('status', 'approved')
+            ->whereIn('type', ['clock_out', 'overtime_start', 'overtime_end'])
+            ->get()
+            ->keyBy('type');
+        $clockOut = $approvedEntries->get('clock_out')?->recorded_at;
+
+        if (! $clockOut) {
+            throw ValidationException::withMessages([
+                'requested_entries' => 'A hora extra só pode ser aprovada depois da saída normal.',
+            ]);
+        }
+
+        $parseRequested = fn (string $type): ?CarbonImmutable => $requested->has($type)
+            ? CarbonImmutable::createFromFormat(
+                'Y-m-d H:i',
+                $localDate->format('Y-m-d').' '.$requested->get($type)['time'],
+                config('app.business_timezone'),
+            )->utc()
+            : null;
+        $start = $parseRequested('overtime_start') ?? $approvedEntries->get('overtime_start')?->recorded_at;
+        $end = $parseRequested('overtime_end') ?? $approvedEntries->get('overtime_end')?->recorded_at;
+
+        if ($start && $start->lte($clockOut)) {
+            throw ValidationException::withMessages([
+                'requested_entries' => 'A hora extra deve começar depois da saída normal.',
+            ]);
+        }
+        if ($end && ! $start) {
+            throw ValidationException::withMessages([
+                'requested_entries' => 'Informe ou aprove o início da hora extra antes do término.',
+            ]);
+        }
+        if ($start && $end && ($end->lte($start) || $start->diffInMinutes($end) > 120)) {
+            throw ValidationException::withMessages([
+                'requested_entries' => 'A hora extra deve terminar depois do início e não pode ultrapassar 2 horas.',
+            ]);
+        }
     }
 
     private function creditApprovedOvertime(TimeAdjustmentRequest $adjustment, User $reviewer): void
@@ -96,11 +149,24 @@ class TimeAdjustmentApprovalService
                 config('app.business_timezone'),
             )->utc();
 
+            $alreadyExists = $adjustment->user->timeEntries()
+                ->whereDate('work_date', $adjustment->work_date)
+                ->where('type', $requestedEntry['type'])
+                ->where('status', '<>', 'cancelled')
+                ->exists();
+
+            if ($alreadyExists) {
+                throw ValidationException::withMessages([
+                    'requested_entries' => "Já existe uma batida ativa do tipo {$requestedEntry['type']} nesta data.",
+                ]);
+            }
+
             $adjustment->timeEntries()->firstOrCreate(
                 ['type' => $requestedEntry['type']],
                 [
                     'user_id' => $adjustment->user_id,
                     'recorded_at' => $recordedAt,
+                    'work_date' => $adjustment->work_date,
                     'source' => 'manual',
                     'status' => 'approved',
                     'reason' => 'manual_entry',

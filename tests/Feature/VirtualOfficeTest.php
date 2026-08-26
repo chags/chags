@@ -648,6 +648,14 @@ test('a manager approval credits a complete overtime pair to the hour bank', fun
     $employee = User::factory()->create(['tracks_time' => true]);
     $employee->assignRole('colaborador');
     createEmployee($employee)->update(['manager_id' => $manager->id]);
+    TimeEntry::query()->create([
+        'user_id' => $employee->id,
+        'recorded_at' => '2026-08-19 20:00:00',
+        'type' => 'clock_out',
+        'source' => 'web',
+        'status' => 'approved',
+        'created_by' => $employee->id,
+    ]);
     $adjustment = TimeAdjustmentRequest::query()->create([
         'user_id' => $employee->id,
         'work_date' => '2026-08-19',
@@ -670,6 +678,42 @@ test('a manager approval credits a complete overtime pair to the hour bank', fun
         'work_date' => '2026-08-19 00:00:00',
         'minutes' => 120,
         'type' => 'overtime',
+        'time_adjustment_request_id' => $adjustment->id,
+    ]);
+});
+
+test('overtime approval rejects a period longer than two hours', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('colaborador');
+    createEmployee($employee)->update(['manager_id' => $manager->id]);
+    TimeEntry::query()->create([
+        'user_id' => $employee->id,
+        'recorded_at' => '2026-08-19 20:00:00',
+        'type' => 'clock_out',
+        'source' => 'web',
+        'status' => 'approved',
+        'created_by' => $employee->id,
+    ]);
+    $adjustment = TimeAdjustmentRequest::query()->create([
+        'user_id' => $employee->id,
+        'work_date' => '2026-08-19',
+        'requested_entries' => [
+            ['type' => 'overtime_start', 'time' => '18:00'],
+            ['type' => 'overtime_end', 'time' => '20:01'],
+        ],
+        'reason' => 'Período extraordinário acima do limite diário permitido.',
+        'status' => 'pending',
+    ]);
+
+    $this->actingAs($manager)
+        ->patchJson("/personnel/time-approvals/{$adjustment->id}", ['decision' => 'approve'])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('requested_entries');
+
+    expect($adjustment->refresh()->status)->toBe('pending');
+    $this->assertDatabaseMissing('hour_bank_transactions', [
         'time_adjustment_request_id' => $adjustment->id,
     ]);
 });

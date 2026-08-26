@@ -1,7 +1,6 @@
 import 'dart:developer' as developer;
 
 import 'package:dio/dio.dart';
-import 'package:uuid/uuid.dart';
 
 import '../config/app_config.dart';
 import 'session_store.dart';
@@ -83,11 +82,15 @@ class ApiClient {
       _data(await _authorized('POST', '/devices/register', data: payload));
   Future<Map<String, dynamic>> punchStatus() async =>
       _data(await _authorized('GET', '/time-punch/status'));
-  Future<Map<String, dynamic>> punch() async => _data(
+  Future<Map<String, dynamic>> punch(
+    String idempotencyKey,
+    String expectedType,
+  ) async => _data(
     await _authorized(
       'POST',
       '/time-punch',
-      headers: {'Idempotency-Key': 'punch-${const Uuid().v4()}'},
+      data: {'expected_type': expectedType},
+      headers: {'Idempotency-Key': idempotencyKey},
     ),
   );
   Future<Map<String, dynamic>> timeCard(String month) async =>

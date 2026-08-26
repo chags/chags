@@ -7,6 +7,7 @@ use App\Models\User;
 use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
 use Illuminate\Http\Request;
+use Symfony\Component\HttpKernel\Exception\ConflictHttpException;
 use Symfony\Component\HttpKernel\Exception\UnprocessableEntityHttpException;
 
 class TimePunchService
@@ -46,17 +47,22 @@ class TimePunchService
         ];
     }
 
-    public function punch(User $user, Request $request, string $source): array
+    public function punch(User $user, Request $request, string $source, ?string $expectedType = null): array
     {
+        $user = User::query()->lockForUpdate()->findOrFail($user->id);
         $status = $this->status($user);
         if ($status['nextType'] === null) {
             throw new UnprocessableEntityHttpException('Todos os registros de hoje já foram realizados.');
+        }
+        if ($expectedType !== null && $status['nextType'] !== $expectedType) {
+            throw new ConflictHttpException('O estado da jornada mudou. Atualize as batidas antes de tentar novamente.');
         }
 
         $recordedAt = CarbonImmutable::now();
         $entry = TimeEntry::query()->create([
             'user_id' => $user->id,
             'recorded_at' => $recordedAt,
+            'work_date' => $recordedAt->setTimezone(config('app.business_timezone'))->toDateString(),
             'type' => $status['nextType'],
             'source' => $source,
             ...$this->decisions->decide($user, $status['nextType'], $recordedAt, $source),

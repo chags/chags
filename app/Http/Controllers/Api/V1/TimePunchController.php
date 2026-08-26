@@ -7,6 +7,7 @@ use App\Services\MobileApi\IdempotencyService;
 use App\Services\VirtualOffice\TimePunchService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\Rule;
 
 class TimePunchController extends Controller
 {
@@ -17,6 +18,9 @@ class TimePunchController extends Controller
 
     public function store(Request $request, TimePunchService $service, IdempotencyService $idempotency): JsonResponse
     {
+        $validated = $request->validate([
+            'expected_type' => ['required', 'string', Rule::in(['clock_in', 'break_start', 'break_end', 'clock_out'])],
+        ]);
         $key = $request->header('Idempotency-Key');
         abort_unless(is_string($key) && preg_match('/^[A-Za-z0-9._:-]{16,255}$/', $key), 422, 'Informe uma chave de idempotência válida.');
         $result = $idempotency->execute(
@@ -24,9 +28,9 @@ class TimePunchController extends Controller
             'time-punch',
             'POST',
             $key,
-            ['device_id' => $request->header('X-Device-ID')],
+            ['device_id' => $request->header('X-Device-ID'), 'expected_type' => $validated['expected_type']],
             fn () => [
-                'body' => ['message' => 'Ponto registrado com sucesso.', 'data' => $this->normalize($service->punch($request->user(), $request, 'mobile'))],
+                'body' => ['message' => 'Ponto registrado com sucesso.', 'data' => $this->normalize($service->punch($request->user(), $request, 'mobile', $validated['expected_type']))],
                 'status' => 201,
             ],
         );

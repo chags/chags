@@ -60,7 +60,12 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> punch() async {
     setState(() => punching = true);
     try {
-      final updated = await widget.api.punch();
+      final expectedType = status?['next_type'] as String?;
+      if (expectedType == null) return;
+      final intent = await widget.api.session.pendingPunchIntent(expectedType);
+      await widget.api.punch(intent.idempotencyKey, intent.expectedType);
+      await widget.api.session.clearPendingPunch();
+      final updated = await widget.api.punchStatus();
       setState(() => status = updated);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -71,6 +76,15 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }
     } catch (exception) {
+      if (exception is ApiException &&
+          exception.statusCode != null &&
+          exception.statusCode! < 500 &&
+          exception.statusCode != 429) {
+        await widget.api.session.clearPendingPunch();
+      }
+      if (exception is ApiException && exception.statusCode == 409) {
+        await load();
+      }
       if (mounted) {
         ScaffoldMessenger.of(
           context,

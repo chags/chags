@@ -41,7 +41,7 @@ test('an authenticated user registers a cryptographically signed device', functi
         'app' => ['version' => '1.0.0', 'build' => '1', 'package_name' => 'com.chags.ponto'],
         'device' => [
             'platform' => 'android', 'manufacturer' => 'Google', 'model' => 'Pixel',
-            'os_version' => '16', 'locale' => 'pt-BR', 'timezone' => 'America/Sao_Paulo',
+            'os_version' => '16', 'locale' => 'pt-BR', 'timezone' => null,
             'biometric_available' => true,
         ],
         'attestation' => ['provider' => 'fake', 'token' => 'valid-test-attestation'],
@@ -70,12 +70,28 @@ test('mobile time punch uses server time and mobile source', function () {
         'first_seen_at' => now(), 'last_seen_at' => now(),
     ]);
 
-    $this->withToken(apiTokenFor($user))
-        ->withHeaders(['X-Device-ID' => $device->id, 'Idempotency-Key' => fake()->uuid()])
-        ->postJson('/api/v1/time-punch')
+    $token = apiTokenFor($user);
+    $idempotencyKey = fake()->uuid();
+    $headers = ['X-Device-ID' => $device->id, 'Idempotency-Key' => $idempotencyKey];
+
+    $this->withToken($token)
+        ->withHeaders($headers)
+        ->postJson('/api/v1/time-punch', ['expected_type' => 'clock_in'])
         ->assertCreated()
         ->assertJsonPath('data.registered_type', 'clock_in');
 
+    $this->withToken($token)
+        ->withHeaders($headers)
+        ->postJson('/api/v1/time-punch', ['expected_type' => 'clock_in'])
+        ->assertCreated()
+        ->assertJsonPath('data.registered_type', 'clock_in');
+
+    $this->withToken($token)
+        ->withHeaders(['X-Device-ID' => $device->id, 'Idempotency-Key' => fake()->uuid()])
+        ->postJson('/api/v1/time-punch', ['expected_type' => 'clock_in'])
+        ->assertConflict();
+
     $this->assertDatabaseHas('time_entries', ['user_id' => $user->id, 'type' => 'clock_in', 'source' => 'mobile']);
+    $this->assertDatabaseCount('time_entries', 1);
     CarbonImmutable::setTestNow();
 });
