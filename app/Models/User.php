@@ -79,6 +79,11 @@ class User extends Authenticatable implements JWTSubject
         return $this->hasMany(ApiDevice::class);
     }
 
+    public function inAppMessageRecipients(): HasMany
+    {
+        return $this->hasMany(InAppMessageRecipient::class);
+    }
+
     public function faceioIdentity(): HasOne
     {
         return $this->hasOne(FaceioIdentity::class);

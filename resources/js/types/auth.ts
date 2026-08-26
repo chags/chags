@@ -38,6 +38,8 @@ export type Auth = {
         personnelView: boolean;
         timeApprovalsView: boolean;
         medicalCertificateSubmit: boolean;
+        messagesViewOwn: boolean;
+        messagesManage: boolean;
     };
 };
 

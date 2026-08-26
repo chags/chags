@@ -3,6 +3,7 @@ import { faAnglesRight } from '@fortawesome/free-solid-svg-icons/faAnglesRight';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { Link, router, usePage } from '@inertiajs/react';
 import { Bell, Globe, LogOut, Menu, Settings, UserRound } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { Breadcrumbs } from '@/components/breadcrumbs';
 import { TimePunchModal } from '@/components/time-punch-modal';
 import { useInitials } from '@/hooks/use-initials';
@@ -23,6 +24,60 @@ export function AppHeader({
 }: Props) {
     const { auth } = usePage().props;
     const getInitials = useInitials();
+    const [notificationSummary, setNotificationSummary] = useState<{
+        unreadCount: number;
+        messages: Array<{
+            id: string;
+            title: string;
+            body: string | null;
+            code: string | null;
+            readAt: string | null;
+        }>;
+    }>({ unreadCount: 0, messages: [] });
+
+    const loadNotifications = useCallback(async () => {
+        if (!auth.abilities.messagesViewOwn) {
+return;
+}
+
+        const response = await fetch('/mensagens/resumo', {
+            headers: { Accept: 'application/json' },
+        });
+
+        if (response.ok) {
+setNotificationSummary(await response.json());
+}
+    }, [auth.abilities.messagesViewOwn]);
+
+    useEffect(() => {
+        const initialLoad = window.setTimeout(() => {
+            void loadNotifications();
+        }, 0);
+        const interval = window.setInterval(() => {
+            if (document.visibilityState === 'visible') {
+void loadNotifications();
+}
+        }, 30000);
+
+        return () => {
+            window.clearTimeout(initialLoad);
+            window.clearInterval(interval);
+        };
+    }, [loadNotifications]);
+
+    const markAllRead = async () => {
+        await fetch('/mensagens/marcar-todas-lidas', {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN':
+                    document.querySelector<HTMLMetaElement>(
+                        'meta[name="csrf-token"]',
+                    )?.content ?? '',
+            },
+        });
+        await loadNotifications();
+    };
 
     const handleLogout = () => {
         router.flushAll();
@@ -99,43 +154,82 @@ export function AppHeader({
                         <Globe className="size-5" />
                     </a>
 
-                    <div className="dropdown dropdown-end">
-                        <div
-                            tabIndex={0}
-                            role="button"
-                            aria-label="Notificações"
-                            className="btn btn-circle btn-ghost"
-                        >
-                            <div className="indicator">
-                                <Bell className="size-5" />
-                                <span className="indicator-item badge badge-xs badge-primary" />
-                            </div>
-                        </div>
-                        <div
-                            tabIndex={-1}
-                            className="dropdown-content card z-50 mt-3 w-80 border border-base-300 bg-base-100 shadow-xl card-sm"
-                        >
-                            <div className="card-body gap-3">
-                                <div className="flex items-center justify-between">
-                                    <h2 className="card-title text-base">
-                                        Notificações
-                                    </h2>
-                                    <span className="badge badge-sm badge-primary">
-                                        1 nova
-                                    </span>
-                                </div>
-                                <div className="rounded-box bg-base-200 p-3">
-                                    <p className="font-medium">
-                                        Ambiente configurado
-                                    </p>
-                                    <p className="mt-1 text-sm text-base-content/65">
-                                        Seu painel administrativo está pronto
-                                        para uso.
-                                    </p>
+                    {auth.abilities.messagesViewOwn && (
+                        <div className="dropdown dropdown-end">
+                            <div
+                                tabIndex={0}
+                                role="button"
+                                aria-label="Notificações"
+                                className="btn btn-circle btn-ghost"
+                            >
+                                <div className="indicator">
+                                    <Bell className="size-5" />
+                                    {notificationSummary.unreadCount > 0 && (
+                                        <span className="indicator-item badge badge-sm badge-primary">
+                                            {notificationSummary.unreadCount >
+                                            99
+                                                ? '99+'
+                                                : notificationSummary.unreadCount}
+                                        </span>
+                                    )}
                                 </div>
                             </div>
+                            <div
+                                tabIndex={-1}
+                                className="dropdown-content card z-50 mt-3 w-80 border border-base-300 bg-base-100 shadow-xl card-sm"
+                            >
+                                <div className="card-body gap-3">
+                                    <div className="flex items-center justify-between">
+                                        <h2 className="card-title text-base">
+                                            Notificações
+                                        </h2>
+                                        {notificationSummary.unreadCount >
+                                            0 && (
+                                            <button
+                                                type="button"
+                                                onClick={markAllRead}
+                                                className="btn btn-ghost btn-xs"
+                                            >
+                                                Marcar lidas
+                                            </button>
+                                        )}
+                                    </div>
+                                    {notificationSummary.messages.map(
+                                        (message) => (
+                                            <Link
+                                                key={message.id}
+                                                href="/mensagens"
+                                                className={`rounded-box p-3 ${message.readAt ? 'bg-base-200/50' : 'bg-base-200'}`}
+                                            >
+                                                <p className="font-medium">
+                                                    {message.title}
+                                                </p>
+                                                <p className="mt-1 line-clamp-2 text-sm text-base-content/65">
+                                                    {message.body}
+                                                </p>
+                                                {message.code && (
+                                                    <p className="mt-2 font-mono text-lg font-bold tracking-widest text-primary">
+                                                        {message.code}
+                                                    </p>
+                                                )}
+                                            </Link>
+                                        ),
+                                    )}
+                                    {!notificationSummary.messages.length && (
+                                        <p className="py-4 text-center text-sm text-base-content/60">
+                                            Nenhuma mensagem.
+                                        </p>
+                                    )}
+                                    <Link
+                                        href="/mensagens"
+                                        className="btn btn-ghost btn-sm"
+                                    >
+                                        Ver todas
+                                    </Link>
+                                </div>
+                            </div>
                         </div>
-                    </div>
+                    )}
 
                     <div className="dropdown dropdown-end">
                         <div

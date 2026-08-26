@@ -12,10 +12,12 @@ use App\Http\Controllers\Hr\ApplicationController;
 use App\Http\Controllers\Hr\ApplicationResumeController;
 use App\Http\Controllers\Hr\DepartmentController;
 use App\Http\Controllers\Hr\HrDashboardController;
+use App\Http\Controllers\Hr\InAppMessageController as HrInAppMessageController;
 use App\Http\Controllers\Hr\InterviewScheduleController;
 use App\Http\Controllers\Hr\JobController;
 use App\Http\Controllers\Hr\JobImageController;
 use App\Http\Controllers\Hr\PositionController;
+use App\Http\Controllers\InAppMessageController;
 use App\Http\Controllers\Personnel\TimeCardSettingsController;
 use App\Http\Controllers\TimeManagement\HolidayController;
 use App\Http\Controllers\TimeManagement\MedicalCertificateController;
@@ -76,6 +78,23 @@ Route::middleware($authenticatedMiddleware)->group(function () {
     Route::resource('hr/positions', PositionController::class)->only(['index', 'store', 'update', 'destroy'])->names('hr.positions');
     Route::get('hr/evaluations', [InterviewScheduleController::class, 'index'])->name('hr.evaluations.index');
     Route::post('hr/evaluations', [InterviewScheduleController::class, 'store'])->name('hr.evaluations.store');
+
+    Route::prefix('mensagens')->name('messages.')->middleware('permission:messages.view-own')->group(function () {
+        Route::get('/', [InAppMessageController::class, 'index'])->name('index');
+        Route::get('resumo', [InAppMessageController::class, 'summary'])->middleware('throttle:120,1')->name('summary');
+        Route::patch('{recipient}/lida', [InAppMessageController::class, 'read'])->name('read');
+        Route::patch('{recipient}/nao-lida', [InAppMessageController::class, 'unread'])->name('unread');
+        Route::post('marcar-todas-lidas', [InAppMessageController::class, 'readAll'])->name('read-all');
+    });
+
+    Route::prefix('hr/mensagens')->name('hr.messages.')->group(function () {
+        Route::get('/', [HrInAppMessageController::class, 'index'])->middleware('permission:messages.manage')->name('index');
+        Route::post('/', [HrInAppMessageController::class, 'store'])->middleware('permission:messages.manage')->name('store');
+        Route::put('{message}', [HrInAppMessageController::class, 'update'])->middleware('permission:messages.manage')->name('update');
+        Route::delete('{message}', [HrInAppMessageController::class, 'destroy'])->middleware('permission:messages.manage')->name('destroy');
+        Route::post('{message}/enviar', [HrInAppMessageController::class, 'send'])->middleware('permission:messages.send')->name('send');
+        Route::post('{message}/arquivar', [HrInAppMessageController::class, 'archive'])->middleware('permission:messages.archive')->name('archive');
+    });
 
     Route::prefix('virtual-office')
         ->name('virtual-office.')

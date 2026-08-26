@@ -7,6 +7,7 @@ use App\Models\User;
 use App\Models\WhatsAppUnlockChallenge;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -15,6 +16,7 @@ class WhatsAppCodeService
     public function __construct(
         private readonly PhoneNormalizer $normalizer,
         private readonly WhatsAppMessageSender $sender,
+        private readonly AppUnlockNotificationService $notifications,
     ) {}
 
     public function request(string $phone, string $installationId, Request $request): WhatsAppUnlockChallenge
@@ -38,7 +40,16 @@ class WhatsAppCodeService
         ]);
 
         if ($user) {
-            $challenge->update(['provider_message_id' => $this->sender->sendCode($normalized, $code)]);
+            $this->notifications->send($user, $challenge, $code);
+
+            try {
+                $challenge->update(['provider_message_id' => $this->sender->sendCode($normalized, $code)]);
+            } catch (\Throwable $exception) {
+                Log::warning('Falha no envio externo do código de acesso.', [
+                    'challenge_id' => $challenge->id,
+                    'exception' => $exception::class,
+                ]);
+            }
         }
 
         return $challenge;

@@ -58,6 +58,8 @@ class HandleInertiaRequests extends Middleware
                     'timeApprovalsView' => ($request->user()?->can('time-records.approve') ?? false)
                         || ($request->user()?->can('medical-certificates.review') ?? false),
                     'medicalCertificateSubmit' => $request->user()?->can('medical-certificates.submit') ?? false,
+                    'messagesViewOwn' => $request->user()?->can('messages.view-own') ?? false,
+                    'messagesManage' => $request->user()?->can('messages.manage') ?? false,
                 ],
             ],
             'companyBrand' => fn () => $this->companyBrand(),

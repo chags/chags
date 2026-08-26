@@ -13,6 +13,7 @@ class RolesAndPermissionsSeeder extends Seeder
     /** @var array<string, list<string>> */
     private array $permissionsByRole = [
         'candidato' => [
+            'messages.view-own',
             'jobs.view',
             'applications.view-own',
             'applications.create',
@@ -22,6 +23,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'employee-documents.upload-own',
         ],
         'colaborador' => [
+            'messages.view-own',
             'intranet.access',
             'announcements.view',
             'policies.view',
@@ -38,6 +40,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'payroll.view-own',
         ],
         'gestor' => [
+            'messages.view-own',
             'intranet.access',
             'announcements.view',
             'policies.view',
@@ -63,6 +66,10 @@ class RolesAndPermissionsSeeder extends Seeder
             'interviews.view',
         ],
         'rh-analista' => [
+            'messages.view-own',
+            'messages.manage',
+            'messages.send',
+            'messages.view-metrics',
             'intranet.access',
             'announcements.view',
             'policies.view',
@@ -90,6 +97,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'benefits.manage',
         ],
         'rh-gestor' => [
+            'messages.archive',
             'admissions.approve',
             'applications.delete',
             'jobs.delete',
@@ -99,6 +107,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'vacations.approve',
         ],
         'dp-analista' => [
+            'messages.view-own',
             'intranet.access',
             'announcements.view',
             'policies.view',
@@ -131,6 +140,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'payroll.approve',
         ],
         'administrador' => [
+            'messages.view-own',
             'intranet.access',
             'system.settings.view',
             'system.settings.company.update',

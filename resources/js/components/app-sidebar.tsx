@@ -4,6 +4,7 @@ import { faBuilding } from '@fortawesome/free-solid-svg-icons/faBuilding';
 import { faChevronDown } from '@fortawesome/free-solid-svg-icons/faChevronDown';
 import { faClipboardCheck } from '@fortawesome/free-solid-svg-icons/faClipboardCheck';
 import { faClock } from '@fortawesome/free-solid-svg-icons/faClock';
+import { faEnvelope } from '@fortawesome/free-solid-svg-icons/faEnvelope';
 import { faFileLines } from '@fortawesome/free-solid-svg-icons/faFileLines';
 import { faGaugeHigh } from '@fortawesome/free-solid-svg-icons/faGaugeHigh';
 import { faHouse } from '@fortawesome/free-solid-svg-icons/faHouse';
@@ -230,6 +231,22 @@ export function AppSidebar({ collapsed = false }: Props) {
                                             </Link>
                                         </li>
                                     ))}
+                                    {auth.abilities.messagesManage && (
+                                        <li>
+                                            <Link
+                                                href="/hr/mensagens"
+                                                onClick={closeMobileDrawer}
+                                                className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl('/hr/mensagens') ? 'menu-active font-semibold' : ''}`}
+                                            >
+                                                <FontAwesomeIcon
+                                                    icon={faEnvelope}
+                                                    className="shrink-0"
+                                                    fixedWidth
+                                                />
+                                                <span>Mensagens</span>
+                                            </Link>
+                                        </li>
+                                    )}
                                 </ul>
                             )}
                         </li>
