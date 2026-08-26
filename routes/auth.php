@@ -8,6 +8,7 @@ use Illuminate\Support\Facades\Route;
 use Laravel\WorkOS\Http\Requests\AuthKitAuthenticationRequest;
 use Laravel\WorkOS\Http\Requests\AuthKitLoginRequest;
 use Laravel\WorkOS\Http\Requests\AuthKitLogoutRequest;
+use Laravel\WorkOS\User as WorkOSUser;
 
 Route::middleware(['guest'])->group(function () {
     Route::get('login', function (AuthKitLoginRequest $request) {
@@ -58,7 +59,20 @@ Route::middleware(['guest'])->group(function () {
 
         return tap(
             redirect()->intended(route('dashboard')),
-            fn () => $request->authenticate(),
+            fn () => $request->authenticate(
+                findUsing: fn (WorkOSUser $workosUser) => User::query()
+                    ->where('workos_id', $workosUser->id)
+                    ->orWhere('email', $workosUser->email)
+                    ->first(),
+                updateUsing: function (User $user, WorkOSUser $workosUser): User {
+                    $user->forceFill([
+                        'workos_id' => $workosUser->id,
+                        'avatar' => $workosUser->avatar ?? $user->avatar ?? '',
+                    ])->save();
+
+                    return $user;
+                },
+            ),
         );
     });
 });
