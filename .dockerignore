@@ -9,3 +9,11 @@ storage/framework/sessions/*
 storage/framework/views/*
 storage/logs/*
 public/build
+mobile/.dart_tool
+mobile/build
+mobile/android/.gradle
+mobile/ios/Pods
+storage/framework/testing
+storage/app
+.codex
+.agents

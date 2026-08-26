@@ -183,10 +183,11 @@ Criar alertas para:
 
 ### Fase 2 — Capacidade e estabilidade
 
-- [ ] Configurar Redis para cache, filas e rate limiting.
-- [ ] Revisar PHP-FPM, OPcache e conexões do PostgreSQL.
-- [ ] Criar teste de carga com distribuição realista por horário.
-- [ ] Ajustar limites com base nos resultados medidos.
+- [x] Configurar Redis para cache, filas e rate limiting.
+- [x] Revisar PHP-FPM, OPcache e conexões do PostgreSQL.
+- [x] Criar teste de carga com múltiplas identidades e cenários de abertura e gravação.
+- [x] Ajustar os limites locais com base nos resultados medidos.
+- [ ] Repetir os testes na VPS de homologação com 4 vCPU e 6 GB de RAM e confirmar os limites finais.
 
 ### Fase 3 — Operação e observabilidade
 
@@ -230,6 +231,59 @@ Os dados usados no teste devem representar usuários e dispositivos fictícios e
 - Recuperação controlada após pico, sem filas ou conexões permanentemente presas.
 
 As metas de latência devem ser revisadas após medir a infraestrutura real de produção.
+
+## Resultado do teste local inicial
+
+Executado em 26/08/2026 contra a API local via Nginx, usando o endpoint autenticado `GET /api/v1/time-punch/status`:
+
+| Métrica | Resultado |
+| --- | ---: |
+| Requisições | 5.000 |
+| Concorrência | 100 |
+| Duração | 71,477 s |
+| Vazão | 69,95 req/s |
+| HTTP 200 | 5.000 |
+| Erros | 0 |
+| Latência mínima | 129,67 ms |
+| Latência p50 | 708,31 ms |
+| Latência p95 | 1.259,36 ms |
+| Latência p99 | 1.974,33 ms |
+| Latência máxima | 2.555,64 ms |
+
+O teste superou a vazão média de aproximadamente 17 requisições por segundo necessária para distribuir 5.000 acessos em cinco minutos, sem erros. O p95 ficou abaixo da meta inicial de 1,5 segundo, mas o p99 ficou próximo de 2 segundos.
+
+Esse resultado foi a linha de base anterior aos ajustes da Fase 2, usando somente um usuário/dispositivo e o endpoint de leitura do estado diário.
+
+O teste pode ser repetido dentro do contêiner com:
+
+```bash
+php scripts/load-test-mobile.php 5000 100 http://nginx/api/v1 5000 status
+```
+
+O script cria usuários e dispositivos temporários, não imprime tokens ou credenciais e remove os dados criados ao finalizar, inclusive em caso de falha.
+
+## Resultado local após a Fase 2
+
+Executado em 26/08/2026 via Nginx local, com concorrência 100 e 5.000 identidades distintas:
+
+| Cenário | Requisições | Resultado HTTP | Vazão | p50 | p95 | p99 | Erros |
+| --- | ---: | --- | ---: | ---: | ---: | ---: | ---: |
+| Estado diário | 5.000 | 5.000 × 200 | 103,46 req/s | 548,19 ms | 871,25 ms | 1.019,16 ms | 0 |
+| Abertura (`/me` + estado) | 10.000 | 10.000 × 200 | 111,67 req/s | 509,40 ms | 820,50 ms | 1.000,12 ms | 0 |
+| Registro de entrada | 5.000 | 5.000 × 201 | 64,90 req/s | 850,71 ms | 1.472,25 ms | 1.688,87 ms | 0 |
+
+Todos os cenários atenderam aos critérios iniciais de erro, p95 de leitura e p95 de gravação. A limpeza final confirmou que não permaneceram usuários temporários nem chaves de idempotência órfãs.
+
+Os limites locais configurados são: PHP-FPM dinâmico com até 24 filhos e reciclagem após 1.000 requisições; OPcache de 256 MB; PostgreSQL com `shared_buffers` de 1 GB, `effective_cache_size` de 3 GB e até 100 conexões; Redis com AOF `everysec`, limite de 512 MB e política `noeviction`; e um worker de fila dedicado.
+
+Esses números comprovam o comportamento no ambiente local, mas não garantem por si só a capacidade da VPS contratada. A homologação deve repetir os três cenários enquanto mede CPU, memória, processos PHP-FPM e conexões do PostgreSQL. Se a aplicação for recriada no Docker, o Nginx também deve ser recarregado ou recriado para resolver o novo endereço do contêiner.
+
+Exemplos dos outros cenários:
+
+```bash
+php scripts/load-test-mobile.php 10000 100 http://nginx/api/v1 5000 startup
+php scripts/load-test-mobile.php 5000 100 http://nginx/api/v1 5000 punch
+```
 
 ## Estratégia de implantação
 

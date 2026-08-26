@@ -10,6 +10,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+      redis:
+        condition: service_healthy
     environment:
       APP_ENV: local
       APP_DEBUG: "true"
@@ -20,6 +22,12 @@ services:
       DB_DATABASE: chagsdb
       DB_USERNAME: chags
       DB_PASSWORD: chags
+      SESSION_DRIVER: redis
+      SESSION_CONNECTION: default
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
       MAIL_MAILER: smtp
       MAIL_SCHEME: null
       MAIL_HOST: mailpit
@@ -36,6 +44,39 @@ services:
       php artisan migrate --force &&
       chown -R www-data:www-data storage bootstrap/cache &&
       php-fpm"
+    networks:
+      - chags
+
+  queue:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    container_name: chags-queue
+    working_dir: /var/www
+    volumes:
+      - .:/var/www
+    depends_on:
+      app:
+        condition: service_started
+      redis:
+        condition: service_healthy
+    environment:
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_URL: http://localhost:9080
+      DB_CONNECTION: pgsql
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_DATABASE: chagsdb
+      DB_USERNAME: chags
+      DB_PASSWORD: chags
+      SESSION_DRIVER: redis
+      CACHE_STORE: redis
+      QUEUE_CONNECTION: redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+    command: php artisan queue:work redis --sleep=1 --tries=3 --timeout=90 --max-jobs=1000
+    restart: unless-stopped
     networks:
       - chags
 
@@ -69,6 +110,42 @@ services:
       start_period: 10s
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    command:
+      - postgres
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=3GB
+      - -c
+      - maintenance_work_mem=256MB
+      - -c
+      - work_mem=4MB
+      - -c
+      - max_connections=100
+    networks:
+      - chags
+
+  redis:
+    image: redis:7-alpine
+    container_name: chags-redis
+    restart: unless-stopped
+    command:
+      - redis-server
+      - --appendonly
+      - "yes"
+      - --appendfsync
+      - everysec
+      - --maxmemory
+      - 512mb
+      - --maxmemory-policy
+      - noeviction
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    volumes:
+      - redis_data:/data
     networks:
       - chags
 
@@ -101,3 +178,4 @@ networks:
 volumes:
   postgres_data:
   flutter_pub_cache:
+  redis_data:
