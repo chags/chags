@@ -69,6 +69,8 @@ export default function PersonnelMessagesIndex({
         setBusy(true);
         setError('');
         const values = Object.fromEntries(new FormData(event.currentTarget));
+        const asUtcDate = (value: FormDataEntryValue | undefined) =>
+            value ? new Date(String(value)).toISOString() : null;
 
         try {
             await request(
@@ -81,8 +83,8 @@ export default function PersonnelMessagesIndex({
                     audience,
                     user_id:
                         audience === 'user' ? Number(values.user_id) : null,
-                    scheduled_at: values.scheduled_at || null,
-                    expires_at: values.expires_at || null,
+                    scheduled_at: asUtcDate(values.scheduled_at),
+                    expires_at: asUtcDate(values.expires_at),
                     send_now: values.send_now === '1',
                 },
             );

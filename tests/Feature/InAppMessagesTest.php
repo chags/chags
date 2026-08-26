@@ -38,8 +38,9 @@ test('a user only sees their own active in-app messages', function () {
 
 test('requesting an app code creates an encrypted private message', function () {
     $user = User::factory()->create([
-        'whatsapp_phone' => '+5511999999999',
-        'whatsapp_phone_verified_at' => now(),
+        'phone' => '11999999999',
+        'whatsapp_phone' => null,
+        'whatsapp_phone_verified_at' => null,
     ]);
     grantMessagePermission($user, 'messages.view-own');
 

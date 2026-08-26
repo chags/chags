@@ -26,6 +26,18 @@ class WhatsAppCodeService
             ->where('whatsapp_phone', $normalized)
             ->whereNotNull('whatsapp_phone_verified_at')
             ->first();
+
+        // Until the external WhatsApp verification channel is enabled, a
+        // profile phone can identify the recipient because the code itself is
+        // delivered only inside that user's authenticated web panel.
+        if (! $user && str_starts_with($normalized, '+55')) {
+            $matches = User::query()
+                ->where('phone', substr($normalized, 3))
+                ->limit(2)
+                ->get();
+
+            $user = $matches->count() === 1 ? $matches->first() : null;
+        }
         // Always generate and hash a code so registered and unknown numbers take
         // the same expensive path. Only the delivery step depends on the user.
         $code = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);

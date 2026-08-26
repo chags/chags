@@ -24,4 +24,15 @@ class InAppMessageRequest extends FormRequest
             'expires_at' => ['nullable', 'date', 'after:now'],
         ];
     }
+
+    /** @return array<string, string> */
+    public function messages(): array
+    {
+        return [
+            'scheduled_at.date' => 'Informe uma data válida para o agendamento.',
+            'scheduled_at.after' => 'O agendamento deve ser feito para uma data futura.',
+            'expires_at.date' => 'Informe uma data de expiração válida.',
+            'expires_at.after' => 'A expiração deve ser definida para uma data futura.',
+        ];
+    }
 }
