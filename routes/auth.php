@@ -9,6 +9,8 @@ use Laravel\WorkOS\Http\Requests\AuthKitAuthenticationRequest;
 use Laravel\WorkOS\Http\Requests\AuthKitLoginRequest;
 use Laravel\WorkOS\Http\Requests\AuthKitLogoutRequest;
 use Laravel\WorkOS\User as WorkOSUser;
+use Symfony\Component\HttpKernel\Exception\HttpExceptionInterface;
+use WorkOS\Exception\WorkOSException;
 
 Route::middleware(['guest'])->group(function () {
     Route::get('login', function (AuthKitLoginRequest $request) {
@@ -57,9 +59,12 @@ Route::middleware(['guest'])->group(function () {
             abort(404);
         }
 
-        return tap(
-            redirect()->intended(route('dashboard')),
-            fn () => $request->authenticate(
+        if (! $request->filled('code')) {
+            return response()->view('auth.workos-error', status: 422);
+        }
+
+        try {
+            $request->authenticate(
                 findUsing: fn (WorkOSUser $workosUser) => User::query()
                     ->where('workos_id', $workosUser->id)
                     ->orWhere('email', $workosUser->email)
@@ -72,8 +77,22 @@ Route::middleware(['guest'])->group(function () {
 
                     return $user;
                 },
-            ),
-        );
+            );
+        } catch (WorkOSException $exception) {
+            report($exception);
+
+            return response()->view('auth.workos-error', status: 422);
+        } catch (HttpExceptionInterface $exception) {
+            if ($exception->getStatusCode() !== 403) {
+                throw $exception;
+            }
+
+            report($exception);
+
+            return response()->view('auth.workos-error', status: 403);
+        }
+
+        return redirect()->intended(route('dashboard'));
     });
 });
 
