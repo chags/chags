@@ -13,6 +13,7 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Carbon;
 use Spatie\Permission\Traits\HasRoles;
+use Tymon\JWTAuth\Contracts\JWTSubject;
 
 /**
  * @property int $id
@@ -28,16 +29,19 @@ use Spatie\Permission\Traits\HasRoles;
 #[Fillable([
     'name', 'email', 'password', 'tracks_time', 'workos_id', 'avatar', 'cpf', 'birth_date',
     'phone', 'gender', 'postal_code', 'address', 'address_number',
-    'address_complement', 'district', 'city', 'state',
+    'address_complement', 'district', 'city', 'state', 'whatsapp_phone',
+    'whatsapp_phone_verified_at', 'whatsapp_phone_changed_at',
+    'app_unlock_required', 'first_app_access_completed_at', 'jwt_invalid_before',
 ])]
 #[Hidden(['workos_id', 'remember_token'])]
-class User extends Authenticatable
+class User extends Authenticatable implements JWTSubject
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, HasRoles, Notifiable;
 
     protected $attributes = [
         'tracks_time' => false,
+        'app_unlock_required' => true,
     ];
 
     /**
@@ -52,7 +56,32 @@ class User extends Authenticatable
             'birth_date' => 'date:Y-m-d',
             'password' => 'hashed',
             'tracks_time' => 'boolean',
+            'app_unlock_required' => 'boolean',
+            'whatsapp_phone_verified_at' => 'immutable_datetime',
+            'whatsapp_phone_changed_at' => 'immutable_datetime',
+            'first_app_access_completed_at' => 'immutable_datetime',
+            'jwt_invalid_before' => 'immutable_datetime',
         ];
+    }
+
+    public function getJWTIdentifier(): mixed
+    {
+        return $this->getKey();
+    }
+
+    public function getJWTCustomClaims(): array
+    {
+        return ['token_version' => $this->jwt_invalid_before?->timestamp ?? 0];
+    }
+
+    public function apiDevices(): HasMany
+    {
+        return $this->hasMany(ApiDevice::class);
+    }
+
+    public function faceioIdentity(): HasOne
+    {
+        return $this->hasOne(FaceioIdentity::class);
     }
 
     public function getAuthPasswordName(): string

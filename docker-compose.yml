@@ -82,9 +82,22 @@ services:
     networks:
       - chags
 
+  flutter:
+    image: ghcr.io/cirruslabs/flutter:stable
+    container_name: chags-flutter
+    working_dir: /workspace/mobile
+    volumes:
+      - .:/workspace
+      - flutter_pub_cache:/root/.pub-cache
+    environment:
+      API_BASE_URL: http://10.0.2.2:9080/api/v1
+    profiles:
+      - mobile
+
 networks:
   chags:
     driver: bridge
 
 volumes:
   postgres_data:
+  flutter_pub_cache:

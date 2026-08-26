@@ -2,6 +2,10 @@
 
 namespace App\Providers;
 
+use App\Contracts\AppAttestationVerifier;
+use App\Contracts\WhatsAppMessageSender;
+use App\Services\MobileApi\FakeAppAttestationVerifier;
+use App\Services\MobileApi\FakeWhatsAppMessageSender;
 use Carbon\CarbonImmutable;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
@@ -16,7 +20,8 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->singleton(WhatsAppMessageSender::class, FakeWhatsAppMessageSender::class);
+        $this->app->singleton(AppAttestationVerifier::class, FakeAppAttestationVerifier::class);
     }
 
     /**

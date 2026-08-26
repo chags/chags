@@ -1,0 +1,1322 @@
+{
+    "openapi": "3.0.0",
+    "info": {
+        "title": "API Mobile de Ponto Chags",
+        "description": "API REST para liberação do aplicativo, autenticação JWT, validação do dispositivo, biometria facial, registro de ponto e ajustes manuais.",
+        "version": "1.0.0"
+    },
+    "servers": [
+        {
+            "url": "/api/v1",
+            "description": "API versão 1"
+        }
+    ],
+    "paths": {
+        "/app-unlock/whatsapp/request": {
+            "post": {
+                "tags": [
+                    "Liberação do aplicativo"
+                ],
+                "summary": "Solicitar código pelo WhatsApp",
+                "description": "Se o número estiver validado no cadastro, envia um código de seis dígitos. A resposta é igual para telefones cadastrados e desconhecidos.",
+                "operationId": "solicitarCodigoWhatsApp",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "phone",
+                                    "device_installation_id"
+                                ],
+                                "properties": {
+                                    "phone": {
+                                        "description": "Telefone brasileiro ou internacional E.164.",
+                                        "type": "string",
+                                        "example": "(11) 99999-9999",
+                                        "maxLength": 30
+                                    },
+                                    "device_installation_id": {
+                                        "description": "UUID persistente gerado pelo aplicativo.",
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "202": {
+                        "description": "Solicitação aceita.",
+                        "content": {
+                            "application/json": {
+                                "schema": {},
+                                "example": {
+                                    "message": "Se o telefone estiver cadastrado, enviaremos um código.",
+                                    "data": {
+                                        "challenge_id": "01J...",
+                                        "expires_in": 300,
+                                        "resend_after": 60
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Campos inválidos."
+                    },
+                    "429": {
+                        "description": "Limite excedido."
+                    }
+                }
+            }
+        },
+        "/app-unlock/whatsapp/verify": {
+            "post": {
+                "tags": [
+                    "Liberação do aplicativo"
+                ],
+                "summary": "Validar código e receber JWT",
+                "operationId": "validarCodigoWhatsApp",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "challenge_id",
+                                    "device_installation_id",
+                                    "code"
+                                ],
+                                "properties": {
+                                    "challenge_id": {
+                                        "description": "ID devolvido na solicitação.",
+                                        "type": "string",
+                                        "example": "01J..."
+                                    },
+                                    "device_installation_id": {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                                    },
+                                    "code": {
+                                        "description": "Código recebido no WhatsApp.",
+                                        "type": "string",
+                                        "pattern": "^\\d{6}$",
+                                        "example": "123456"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Código validado e JWT emitido.",
+                        "content": {
+                            "application/json": {
+                                "schema": {},
+                                "example": {
+                                    "data": {
+                                        "access_token": "eyJ0eXAi...",
+                                        "token_type": "Bearer",
+                                        "expires_in": 3600,
+                                        "app_unlocked": true,
+                                        "first_access": false,
+                                        "requires_face_enrollment": false
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "404": {
+                        "description": "Desafio não encontrado."
+                    },
+                    "422": {
+                        "description": "Código inválido, expirado ou consumido."
+                    }
+                }
+            }
+        },
+        "/me": {
+            "get": {
+                "tags": [
+                    "Autenticação"
+                ],
+                "summary": "Consultar usuário autenticado",
+                "operationId": "consultarMeuUsuario",
+                "responses": {
+                    "200": {
+                        "description": "Dados do usuário.",
+                        "content": {
+                            "application/json": {
+                                "schema": {},
+                                "example": {
+                                    "data": {
+                                        "id": 10,
+                                        "name": "Ana Botafogo",
+                                        "email": "ana@empresa.com.br",
+                                        "whatsapp_phone": "+5511*****9999",
+                                        "tracks_time": true,
+                                        "first_access_completed": true
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "JWT ausente, inválido ou expirado."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/auth/refresh": {
+            "post": {
+                "tags": [
+                    "Autenticação"
+                ],
+                "summary": "Renovar JWT",
+                "operationId": "renovarToken",
+                "responses": {
+                    "200": {
+                        "description": "Novo JWT.",
+                        "content": {
+                            "application/json": {
+                                "schema": {},
+                                "example": {
+                                    "data": {
+                                        "access_token": "eyJ0eXAi...",
+                                        "token_type": "Bearer",
+                                        "expires_in": 3600
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "JWT inválido."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/auth/logout": {
+            "post": {
+                "tags": [
+                    "Autenticação"
+                ],
+                "summary": "Encerrar sessão",
+                "operationId": "encerrarSessao",
+                "responses": {
+                    "200": {
+                        "description": "JWT invalidado.",
+                        "content": {
+                            "application/json": {
+                                "schema": {},
+                                "example": {
+                                    "message": "Sessão encerrada com sucesso."
+                                }
+                            }
+                        }
+                    },
+                    "401": {
+                        "description": "JWT inválido."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/devices/challenges": {
+            "post": {
+                "tags": [
+                    "Dispositivos"
+                ],
+                "summary": "Criar desafio criptográfico",
+                "operationId": "criarDesafioDispositivo",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "installation_id",
+                                    "platform",
+                                    "purpose"
+                                ],
+                                "properties": {
+                                    "installation_id": {
+                                        "type": "string",
+                                        "format": "uuid",
+                                        "example": "550e8400-e29b-41d4-a716-446655440000"
+                                    },
+                                    "platform": {
+                                        "type": "string",
+                                        "example": "android",
+                                        "enum": [
+                                            "android",
+                                            "ios"
+                                        ]
+                                    },
+                                    "purpose": {
+                                        "description": "Finalidade do desafio.",
+                                        "type": "string",
+                                        "example": "register",
+                                        "enum": [
+                                            "register",
+                                            "verify",
+                                            "sensitive_action"
+                                        ]
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Desafio criado.",
+                        "content": {
+                            "application/json": {
+                                "schema": {},
+                                "example": {
+                                    "data": {
+                                        "challenge_id": "01J...",
+                                        "nonce": "valor-aleatorio",
+                                        "expires_at": "2026-08-25T22:10:00-03:00",
+                                        "required_attestation": "play_integrity"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Campos inválidos."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/devices/register": {
+            "post": {
+                "tags": [
+                    "Dispositivos"
+                ],
+                "summary": "Registrar dispositivo e chave pública",
+                "description": "A assinatura deve usar a chave privada ES256 mantida no armazenamento seguro do aparelho.",
+                "operationId": "registrarDispositivo",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/RegistroDispositivo"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Dispositivo registrado.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RespostaDispositivo"
+                                }
+                            }
+                        }
+                    },
+                    "422": {
+                        "description": "Assinatura, atestação ou campos inválidos."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/devices/verify": {
+            "post": {
+                "tags": [
+                    "Dispositivos"
+                ],
+                "summary": "Revalidar dispositivo cadastrado",
+                "operationId": "verificarDispositivo",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/VerificacaoDispositivo"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Dispositivo validado.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RespostaDispositivo"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Dispositivo bloqueado."
+                    },
+                    "422": {
+                        "description": "Assinatura ou atestação inválida."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/devices": {
+            "get": {
+                "tags": [
+                    "Dispositivos"
+                ],
+                "summary": "Listar meus dispositivos",
+                "operationId": "listarDispositivos",
+                "responses": {
+                    "200": {
+                        "description": "Lista de dispositivos.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "properties": {
+                                        "data": {
+                                            "type": "array",
+                                            "items": {
+                                                "$ref": "#/components/schemas/Dispositivo"
+                                            }
+                                        }
+                                    },
+                                    "type": "object"
+                                }
+                            }
+                        }
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/devices/{device}": {
+            "delete": {
+                "tags": [
+                    "Dispositivos"
+                ],
+                "summary": "Revogar dispositivo",
+                "operationId": "revogarDispositivo",
+                "parameters": [
+                    {
+                        "name": "device",
+                        "in": "path",
+                        "description": "ID ULID do dispositivo.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Dispositivo revogado."
+                    },
+                    "404": {
+                        "description": "Dispositivo não encontrado."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/face-auth/enrollment-sessions": {
+            "post": {
+                "tags": [
+                    "Biometria facial"
+                ],
+                "summary": "Iniciar cadastro facial",
+                "operationId": "criarSessaoFaceio",
+                "parameters": [
+                    {
+                        "name": "X-Device-ID",
+                        "in": "header",
+                        "description": "ID do dispositivo registrado.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Sessão criada.",
+                        "content": {
+                            "application/json": {
+                                "schema": {},
+                                "example": {
+                                    "data": {
+                                        "session_id": "01J...",
+                                        "faceio_public_id": "fio...",
+                                        "payload": "valor-opaco",
+                                        "expires_at": "2026-08-25T22:20:00-03:00"
+                                    }
+                                }
+                            }
+                        }
+                    },
+                    "503": {
+                        "description": "FACEIO não habilitado."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/face-auth/confirm": {
+            "post": {
+                "tags": [
+                    "Biometria facial"
+                ],
+                "summary": "Confirmar cadastro facial",
+                "operationId": "confirmarCadastroFaceio",
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "session_id"
+                                ],
+                                "properties": {
+                                    "session_id": {
+                                        "type": "string",
+                                        "example": "01J..."
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Cadastro confirmado e JWT liberado."
+                    },
+                    "422": {
+                        "description": "Sessão não confirmada ou expirada."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/webhooks/faceio": {
+            "post": {
+                "tags": [
+                    "Biometria facial"
+                ],
+                "summary": "Receber confirmação do FACEIO",
+                "operationId": "receberWebhookFaceio",
+                "parameters": [
+                    {
+                        "name": "WWW-Authenticate",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        },
+                        "example": "Bearer segredo"
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "required": [
+                                    "appId",
+                                    "eventName",
+                                    "payload",
+                                    "facialId"
+                                ],
+                                "properties": {
+                                    "appId": {
+                                        "type": "string"
+                                    },
+                                    "eventName": {
+                                        "type": "string",
+                                        "enum": [
+                                            "ENROLL"
+                                        ]
+                                    },
+                                    "payload": {
+                                        "type": "string"
+                                    },
+                                    "facialId": {
+                                        "type": "string"
+                                    }
+                                },
+                                "type": "object"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "200": {
+                        "description": "Evento processado."
+                    },
+                    "401": {
+                        "description": "Webhook não autenticado."
+                    },
+                    "422": {
+                        "description": "Evento incompleto ou expirado."
+                    }
+                }
+            }
+        },
+        "/time-punch/status": {
+            "get": {
+                "tags": [
+                    "Ponto"
+                ],
+                "summary": "Consultar ponto de hoje",
+                "operationId": "consultarEstadoPonto",
+                "parameters": [
+                    {
+                        "name": "X-Device-ID",
+                        "in": "header",
+                        "description": "ID de dispositivo confiável.",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Estado diário.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RespostaEstadoPonto"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Aplicativo ou dispositivo sem liberação."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/time-punch": {
+            "post": {
+                "tags": [
+                    "Ponto"
+                ],
+                "summary": "Registrar próxima batida",
+                "description": "O horário do celular é ignorado; o servidor define data, hora e fuso.",
+                "operationId": "registrarPonto",
+                "parameters": [
+                    {
+                        "name": "X-Device-ID",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    },
+                    {
+                        "name": "Idempotency-Key",
+                        "in": "header",
+                        "description": "Valor único para impedir batidas duplicadas.",
+                        "required": true,
+                        "schema": {
+                            "type": "string",
+                            "maxLength": 255,
+                            "minLength": 16
+                        },
+                        "example": "punch-550e8400-e29b-41d4-a716"
+                    }
+                ],
+                "responses": {
+                    "201": {
+                        "description": "Ponto registrado.",
+                        "content": {
+                            "application/json": {
+                                "schema": {
+                                    "$ref": "#/components/schemas/RespostaEstadoPonto"
+                                }
+                            }
+                        }
+                    },
+                    "403": {
+                        "description": "Aplicativo ou dispositivo sem liberação."
+                    },
+                    "422": {
+                        "description": "Idempotência inválida ou jornada concluída."
+                    },
+                    "429": {
+                        "description": "Limite excedido."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/time-card": {
+            "get": {
+                "tags": [
+                    "Cartão de ponto"
+                ],
+                "summary": "Consultar cartão mensal",
+                "operationId": "consultarCartaoPonto",
+                "parameters": [
+                    {
+                        "name": "month",
+                        "in": "query",
+                        "description": "Mês AAAA-MM; se omitido, usa o atual.",
+                        "required": false,
+                        "schema": {
+                            "type": "string",
+                            "pattern": "^\\d{4}-\\d{2}$"
+                        },
+                        "example": "2026-08"
+                    },
+                    {
+                        "name": "X-Device-ID",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Espelho mensal com jornadas, batidas, totais e saldos."
+                    },
+                    "422": {
+                        "description": "Mês inválido."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/time-adjustments": {
+            "get": {
+                "tags": [
+                    "Ajustes de ponto"
+                ],
+                "summary": "Listar meus ajustes",
+                "operationId": "listarAjustesPonto",
+                "parameters": [
+                    {
+                        "name": "page",
+                        "in": "query",
+                        "required": false,
+                        "schema": {
+                            "type": "integer",
+                            "minimum": 1
+                        },
+                        "example": 1
+                    },
+                    {
+                        "name": "X-Device-ID",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Lista paginada de ajustes."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            },
+            "post": {
+                "tags": [
+                    "Ajustes de ponto"
+                ],
+                "summary": "Solicitar ajuste manual",
+                "description": "Toda batida manual nasce pendente e precisa de aprovação do gestor.",
+                "operationId": "solicitarAjustePonto",
+                "parameters": [
+                    {
+                        "name": "X-Device-ID",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "requestBody": {
+                    "required": true,
+                    "content": {
+                        "application/json": {
+                            "schema": {
+                                "$ref": "#/components/schemas/SolicitacaoAjuste"
+                            }
+                        }
+                    }
+                },
+                "responses": {
+                    "201": {
+                        "description": "Ajuste pendente criado."
+                    },
+                    "403": {
+                        "description": "Sem permissão."
+                    },
+                    "422": {
+                        "description": "Campos, horários ou duplicidade inválidos."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        },
+        "/time-adjustments/{adjustment}": {
+            "get": {
+                "tags": [
+                    "Ajustes de ponto"
+                ],
+                "summary": "Consultar um ajuste",
+                "operationId": "consultarAjustePonto",
+                "parameters": [
+                    {
+                        "name": "adjustment",
+                        "in": "path",
+                        "description": "ID da solicitação.",
+                        "required": true,
+                        "schema": {
+                            "type": "integer"
+                        }
+                    },
+                    {
+                        "name": "X-Device-ID",
+                        "in": "header",
+                        "required": true,
+                        "schema": {
+                            "type": "string"
+                        }
+                    }
+                ],
+                "responses": {
+                    "200": {
+                        "description": "Detalhes da solicitação."
+                    },
+                    "404": {
+                        "description": "Solicitação não encontrada."
+                    }
+                },
+                "security": [
+                    {
+                        "bearerAuth": []
+                    }
+                ]
+            }
+        }
+    },
+    "components": {
+        "schemas": {
+            "InformacoesAplicativo": {
+                "required": [
+                    "version",
+                    "build",
+                    "package_name"
+                ],
+                "properties": {
+                    "version": {
+                        "type": "string",
+                        "example": "1.0.0"
+                    },
+                    "build": {
+                        "type": "string",
+                        "example": "15"
+                    },
+                    "package_name": {
+                        "type": "string",
+                        "example": "br.com.empresa.ponto"
+                    },
+                    "signing_digest": {
+                        "type": "string",
+                        "example": "SHA256:...",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "InformacoesAparelho": {
+                "required": [
+                    "platform",
+                    "biometric_available"
+                ],
+                "properties": {
+                    "platform": {
+                        "type": "string",
+                        "enum": [
+                            "android",
+                            "ios"
+                        ]
+                    },
+                    "manufacturer": {
+                        "type": "string",
+                        "example": "Samsung",
+                        "nullable": true
+                    },
+                    "model": {
+                        "type": "string",
+                        "example": "SM-S928B",
+                        "nullable": true
+                    },
+                    "os_version": {
+                        "type": "string",
+                        "example": "15",
+                        "nullable": true
+                    },
+                    "security_patch": {
+                        "type": "string",
+                        "format": "date",
+                        "nullable": true
+                    },
+                    "locale": {
+                        "type": "string",
+                        "example": "pt-BR",
+                        "nullable": true
+                    },
+                    "timezone": {
+                        "type": "string",
+                        "example": "America/Sao_Paulo",
+                        "nullable": true
+                    },
+                    "biometric_available": {
+                        "type": "boolean",
+                        "example": true
+                    }
+                },
+                "type": "object"
+            },
+            "AtestacaoAplicativo": {
+                "required": [
+                    "provider",
+                    "token"
+                ],
+                "properties": {
+                    "provider": {
+                        "type": "string",
+                        "enum": [
+                            "play_integrity",
+                            "app_attest",
+                            "fake"
+                        ]
+                    },
+                    "token": {
+                        "description": "Token do Play Integrity, App Attest ou driver de testes.",
+                        "type": "string"
+                    }
+                },
+                "type": "object"
+            },
+            "RegistroDispositivo": {
+                "required": [
+                    "challenge_id",
+                    "nonce",
+                    "installation_id",
+                    "public_key",
+                    "challenge_signature",
+                    "app",
+                    "device",
+                    "attestation"
+                ],
+                "properties": {
+                    "challenge_id": {
+                        "type": "string"
+                    },
+                    "nonce": {
+                        "type": "string"
+                    },
+                    "installation_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "device_name": {
+                        "type": "string",
+                        "example": "Celular da Ana",
+                        "nullable": true
+                    },
+                    "public_key": {
+                        "required": [
+                            "algorithm",
+                            "value"
+                        ],
+                        "properties": {
+                            "algorithm": {
+                                "type": "string",
+                                "enum": [
+                                    "ES256"
+                                ]
+                            },
+                            "value": {
+                                "description": "Chave pública PEM.",
+                                "type": "string"
+                            }
+                        },
+                        "type": "object"
+                    },
+                    "challenge_signature": {
+                        "description": "Assinatura Base64 do nonce.",
+                        "type": "string"
+                    },
+                    "app": {
+                        "$ref": "#/components/schemas/InformacoesAplicativo"
+                    },
+                    "device": {
+                        "$ref": "#/components/schemas/InformacoesAparelho"
+                    },
+                    "attestation": {
+                        "$ref": "#/components/schemas/AtestacaoAplicativo"
+                    }
+                },
+                "type": "object"
+            },
+            "VerificacaoDispositivo": {
+                "required": [
+                    "challenge_id",
+                    "nonce",
+                    "device_id",
+                    "installation_id",
+                    "challenge_signature",
+                    "app",
+                    "device",
+                    "attestation"
+                ],
+                "properties": {
+                    "challenge_id": {
+                        "type": "string"
+                    },
+                    "nonce": {
+                        "type": "string"
+                    },
+                    "device_id": {
+                        "type": "string"
+                    },
+                    "installation_id": {
+                        "type": "string",
+                        "format": "uuid"
+                    },
+                    "challenge_signature": {
+                        "type": "string"
+                    },
+                    "app": {
+                        "$ref": "#/components/schemas/InformacoesAplicativo"
+                    },
+                    "device": {
+                        "$ref": "#/components/schemas/InformacoesAparelho"
+                    },
+                    "attestation": {
+                        "$ref": "#/components/schemas/AtestacaoAplicativo"
+                    }
+                },
+                "type": "object"
+            },
+            "Dispositivo": {
+                "properties": {
+                    "id": {
+                        "type": "string"
+                    },
+                    "name": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "platform": {
+                        "type": "string"
+                    },
+                    "manufacturer": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "model": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "trusted",
+                            "face_verification_required",
+                            "blocked",
+                            "revoked"
+                        ]
+                    },
+                    "trusted": {
+                        "type": "boolean"
+                    },
+                    "face_verification_required": {
+                        "type": "boolean"
+                    },
+                    "last_seen_at": {
+                        "type": "string",
+                        "format": "date-time",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "RespostaDispositivo": {
+                "properties": {
+                    "data": {
+                        "$ref": "#/components/schemas/Dispositivo"
+                    }
+                },
+                "type": "object"
+            },
+            "BatidaPonto": {
+                "properties": {
+                    "id": {
+                        "type": "integer"
+                    },
+                    "type": {
+                        "type": "string",
+                        "enum": [
+                            "clock_in",
+                            "break_start",
+                            "break_end",
+                            "clock_out",
+                            "overtime_start",
+                            "overtime_end"
+                        ]
+                    },
+                    "time": {
+                        "type": "string",
+                        "example": "08:00"
+                    },
+                    "status": {
+                        "type": "string",
+                        "enum": [
+                            "approved",
+                            "pending",
+                            "cancelled"
+                        ]
+                    },
+                    "reason": {
+                        "type": "string",
+                        "nullable": true
+                    }
+                },
+                "type": "object"
+            },
+            "RespostaEstadoPonto": {
+                "properties": {
+                    "message": {
+                        "type": "string",
+                        "nullable": true
+                    },
+                    "data": {
+                        "properties": {
+                            "server_time": {
+                                "type": "string",
+                                "format": "date-time"
+                            },
+                            "timezone": {
+                                "type": "string",
+                                "example": "America/Sao_Paulo"
+                            },
+                            "next_type": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "registered_type": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "registered_at": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "status": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "reason": {
+                                "type": "string",
+                                "nullable": true
+                            },
+                            "entries": {
+                                "type": "array",
+                                "items": {
+                                    "$ref": "#/components/schemas/BatidaPonto"
+                                }
+                            },
+                            "pending_adjustments": {
+                                "type": "array",
+                                "items": {
+                                    "type": "object"
+                                }
+                            }
+                        },
+                        "type": "object"
+                    }
+                },
+                "type": "object"
+            },
+            "SolicitacaoAjuste": {
+                "required": [
+                    "work_date",
+                    "requested_entries",
+                    "reason"
+                ],
+                "properties": {
+                    "work_date": {
+                        "description": "Data atual ou passada.",
+                        "type": "string",
+                        "format": "date",
+                        "example": "2026-08-25"
+                    },
+                    "requested_entries": {
+                        "type": "array",
+                        "items": {
+                            "required": [
+                                "type",
+                                "time"
+                            ],
+                            "properties": {
+                                "type": {
+                                    "type": "string",
+                                    "example": "clock_out",
+                                    "enum": [
+                                        "clock_in",
+                                        "break_start",
+                                        "break_end",
+                                        "clock_out",
+                                        "overtime_start",
+                                        "overtime_end"
+                                    ]
+                                },
+                                "time": {
+                                    "type": "string",
+                                    "pattern": "^([01]\\d|2[0-3]):[0-5]\\d$",
+                                    "example": "18:00"
+                                }
+                            },
+                            "type": "object"
+                        },
+                        "maxItems": 4,
+                        "minItems": 1
+                    },
+                    "reason": {
+                        "type": "string",
+                        "example": "Esqueci de registrar a saída no horário correto.",
+                        "maxLength": 1000,
+                        "minLength": 10
+                    }
+                },
+                "type": "object"
+            }
+        },
+        "securitySchemes": {
+            "bearerAuth": {
+                "type": "http",
+                "description": "Informe o JWT recebido após validar o código do WhatsApp.",
+                "bearerFormat": "JWT",
+                "scheme": "bearer"
+            }
+        }
+    },
+    "tags": [
+        {
+            "name": "Liberação do aplicativo",
+            "description": "Validação do telefone e emissão do primeiro JWT."
+        },
+        {
+            "name": "Autenticação",
+            "description": "Sessão e dados do usuário autenticado."
+        },
+        {
+            "name": "Dispositivos",
+            "description": "Cadastro, atestação e validação do aparelho."
+        },
+        {
+            "name": "Biometria facial",
+            "description": "Primeiro acesso usando FACEIO."
+        },
+        {
+            "name": "Ponto",
+            "description": "Consulta e registro de batidas."
+        },
+        {
+            "name": "Cartão de ponto",
+            "description": "Espelho mensal do cartão."
+        },
+        {
+            "name": "Ajustes de ponto",
+            "description": "Batidas manuais sujeitas à aprovação do gestor."
+        }
+    ]
+}
