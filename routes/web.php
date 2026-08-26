@@ -12,7 +12,7 @@ use App\Http\Controllers\Hr\ApplicationController;
 use App\Http\Controllers\Hr\ApplicationResumeController;
 use App\Http\Controllers\Hr\DepartmentController;
 use App\Http\Controllers\Hr\HrDashboardController;
-use App\Http\Controllers\Hr\InAppMessageController as HrInAppMessageController;
+use App\Http\Controllers\Hr\InAppMessageController as PersonnelInAppMessageController;
 use App\Http\Controllers\Hr\InterviewScheduleController;
 use App\Http\Controllers\Hr\JobController;
 use App\Http\Controllers\Hr\JobImageController;
@@ -87,13 +87,13 @@ Route::middleware($authenticatedMiddleware)->group(function () {
         Route::post('marcar-todas-lidas', [InAppMessageController::class, 'readAll'])->name('read-all');
     });
 
-    Route::prefix('hr/mensagens')->name('hr.messages.')->group(function () {
-        Route::get('/', [HrInAppMessageController::class, 'index'])->middleware('permission:messages.manage')->name('index');
-        Route::post('/', [HrInAppMessageController::class, 'store'])->middleware('permission:messages.manage')->name('store');
-        Route::put('{message}', [HrInAppMessageController::class, 'update'])->middleware('permission:messages.manage')->name('update');
-        Route::delete('{message}', [HrInAppMessageController::class, 'destroy'])->middleware('permission:messages.manage')->name('destroy');
-        Route::post('{message}/enviar', [HrInAppMessageController::class, 'send'])->middleware('permission:messages.send')->name('send');
-        Route::post('{message}/arquivar', [HrInAppMessageController::class, 'archive'])->middleware('permission:messages.archive')->name('archive');
+    Route::prefix('personnel/mensagens')->name('personnel.messages.')->group(function () {
+        Route::get('/', [PersonnelInAppMessageController::class, 'index'])->middleware('permission:messages.manage')->name('index');
+        Route::post('/', [PersonnelInAppMessageController::class, 'store'])->middleware('permission:messages.manage')->name('store');
+        Route::put('{message}', [PersonnelInAppMessageController::class, 'update'])->middleware('permission:messages.manage')->name('update');
+        Route::delete('{message}', [PersonnelInAppMessageController::class, 'destroy'])->middleware('permission:messages.manage')->name('destroy');
+        Route::post('{message}/enviar', [PersonnelInAppMessageController::class, 'send'])->middleware('permission:messages.send')->name('send');
+        Route::post('{message}/arquivar', [PersonnelInAppMessageController::class, 'archive'])->middleware('permission:messages.archive')->name('archive');
     });
 
     Route::prefix('virtual-office')

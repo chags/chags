@@ -59,13 +59,13 @@ test('requesting an app code creates an encrypted private message', function () 
         ->assertJsonPath('messages.0.code', $code);
 });
 
-test('hr can send one administrative message to all users', function () {
-    $hr = User::factory()->create();
+test('personnel can send one administrative message to all users', function () {
+    $personnel = User::factory()->create();
     User::factory()->count(2)->create();
-    grantMessagePermission($hr, 'messages.manage');
-    grantMessagePermission($hr, 'messages.send');
+    grantMessagePermission($personnel, 'messages.manage');
+    grantMessagePermission($personnel, 'messages.send');
 
-    $this->actingAs($hr)->postJson('/hr/mensagens', [
+    $this->actingAs($personnel)->postJson('/personnel/mensagens', [
         'title' => 'Comunicado geral',
         'body' => 'Mensagem para todos.',
         'audience' => 'all',

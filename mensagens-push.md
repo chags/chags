@@ -4,7 +4,7 @@
 
 Criar uma central de mensagens no sino da navbar para:
 
-- permitir que o RH envie comunicados para um usuário específico ou para todos;
+- permitir que o Setor Pessoal envie comunicados para um usuário específico ou para todos;
 - exibir mensagens automáticas geradas pelo sistema;
 - entregar no painel web do próprio usuário o código temporário de liberação do aplicativo enquanto a Evolution API não estiver configurada;
 - registrar leitura, expiração e auditoria das mensagens.
@@ -13,7 +13,7 @@ Nesta primeira versão, “push” significa notificação interna consultada pe
 
 ## Regras de segurança
 
-1. O código de liberação nunca pode aparecer no CRUD do RH, nos logs, em respostas administrativas ou para outro usuário.
+1. O código de liberação nunca pode aparecer no CRUD do Setor Pessoal, nos logs, em respostas administrativas ou para outro usuário.
 2. O código só pode ser consultado pelo usuário destinatário autenticado no painel web.
 3. O código deve ficar criptografado no banco e expirar no mesmo instante do `WhatsAppUnlockChallenge`.
 4. Mensagens expiradas não entram na contagem do sino.
@@ -52,9 +52,9 @@ Criar `/mensagens` com:
 - indicação clara de mensagem expirada;
 - ocultação do conteúdo sensível depois da expiração.
 
-### CRUD do RH
+### CRUD do Setor Pessoal
 
-Criar `/rh/mensagens` com:
+Criar `/personnel/mensagens` com:
 
 - listagem de rascunhos, agendadas, enviadas, expiradas e arquivadas;
 - criação de título e conteúdo;
@@ -66,7 +66,7 @@ Criar `/rh/mensagens` com:
 - arquivamento de mensagens já enviadas;
 - métricas de destinatários e leituras.
 
-Mensagens automáticas do sistema podem aparecer na listagem apenas como metadados de auditoria. O RH não pode abrir o conteúdo sensível nem reenviar um código.
+Mensagens automáticas do sistema podem aparecer na listagem apenas como metadados de auditoria. O Setor Pessoal não pode abrir o conteúdo sensível nem reenviar um código.
 
 ## Modelo de dados
 
@@ -81,7 +81,7 @@ Mensagens automáticas do sistema podem aparecer na listagem apenas como metadad
 | `body` | text nullable | conteúdo comum, nunca armazena o código |
 | `sensitive_payload` | text nullable | cast `encrypted:array`; contém o código somente quando necessário |
 | `audience` | string | `user` ou `all` |
-| `created_by` | FK nullable | usuário do RH; nulo para mensagens automáticas |
+| `created_by` | FK nullable | usuário do Setor Pessoal; nulo para mensagens automáticas |
 | `source_type` | string nullable | tipo da entidade que originou a mensagem |
 | `source_id` | string nullable | ID do desafio ou outra entidade |
 | `scheduled_at` | timestampTz nullable | envio futuro |
@@ -117,8 +117,8 @@ Adicionar ao `RolesAndPermissionsSeeder`:
 Distribuição sugerida:
 
 - `colaborador`, `gestor`, `rh-analista`, `rh-gestor`, `dp-analista`, `dp-gestor` e `administrador`: `messages.view-own`;
-- `rh-analista`: `messages.manage`, `messages.send` e `messages.view-metrics`;
-- `rh-gestor`: herda as permissões do analista e recebe `messages.archive`;
+- `dp-analista`: `messages.manage`, `messages.send` e `messages.view-metrics`;
+- `dp-gestor`: herda as permissões do analista e recebe `messages.archive`;
 - `super-admin`: acesso irrestrito via `Gate::before`, sem duplicar autorização.
 
 Mesmo usuários administrativos só acessam entregas próprias pelo endpoint do sino. O endpoint do CRUD nunca serializa `sensitive_payload`.
@@ -141,13 +141,13 @@ GET   /mensagens/resumo
 Rotas administrativas, protegidas pelas permissões correspondentes:
 
 ```text
-GET    /rh/mensagens
-POST   /rh/mensagens
-GET    /rh/mensagens/{message}
-PATCH  /rh/mensagens/{message}
-DELETE /rh/mensagens/{message}
-POST   /rh/mensagens/{message}/enviar
-POST   /rh/mensagens/{message}/arquivar
+GET    /personnel/mensagens
+POST   /personnel/mensagens
+GET    /personnel/mensagens/{message}
+PATCH  /personnel/mensagens/{message}
+DELETE /personnel/mensagens/{message}
+POST   /personnel/mensagens/{message}/enviar
+POST   /personnel/mensagens/{message}/arquivar
 ```
 
 ## Serviços e responsabilidades
@@ -245,7 +245,7 @@ O scheduler deve executar no servidor por cron ou worker apropriado. A expiraç�
 - usuário não consegue acessar entrega de outro usuário;
 - badge conta apenas mensagens próprias, não lidas, publicadas e não expiradas;
 - marcar uma entrega como lida atualiza a contagem;
-- RH autorizado cria rascunho individual e global;
+- Setor Pessoal autorizado cria rascunho individual e global;
 - usuário sem permissão não acessa o CRUD;
 - mensagem global cria uma entrega por usuário ativo sem duplicação;
 - mensagem enviada não pode ser editada ou excluída diretamente;
@@ -275,17 +275,17 @@ O scheduler deve executar no servidor por cron ou worker apropriado. A expiraç�
 5. controllers, requests, resources e rotas do usuário;
 6. compartilhamento inicial Inertia e polling do sino;
 7. central de mensagens do usuário;
-8. CRUD do RH;
+8. CRUD do Setor Pessoal;
 9. scheduler de publicação e limpeza;
 10. testes de segurança, integração e interface;
 11. Swagger da API mobile, documentando apenas eventual metadado de entrega — nunca o código em endpoints públicos.
 
 ## Critérios de aceite
 
-- o RH envia mensagens individuais e globais com autorização Spatie;
+- o Setor Pessoal envia mensagens individuais e globais com autorização Spatie;
 - o sino mostra contagem e mensagens reais, sem conteúdo demonstrativo fixo;
 - o usuário consegue ler no painel web o código solicitado pelo próprio telefone;
-- nenhum funcionário do RH consegue consultar códigos de outros usuários;
+- nenhum funcionário do Setor Pessoal consegue consultar códigos de outros usuários;
 - códigos são criptografados, expiram e nunca aparecem em logs;
 - telefone desconhecido continua sem revelar existência de cadastro;
 - a indisponibilidade da Evolution API não impede o fluxo pelo painel web;

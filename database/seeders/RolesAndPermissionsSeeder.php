@@ -67,9 +67,6 @@ class RolesAndPermissionsSeeder extends Seeder
         ],
         'rh-analista' => [
             'messages.view-own',
-            'messages.manage',
-            'messages.send',
-            'messages.view-metrics',
             'intranet.access',
             'announcements.view',
             'policies.view',
@@ -97,7 +94,6 @@ class RolesAndPermissionsSeeder extends Seeder
             'benefits.manage',
         ],
         'rh-gestor' => [
-            'messages.archive',
             'admissions.approve',
             'applications.delete',
             'jobs.delete',
@@ -108,6 +104,9 @@ class RolesAndPermissionsSeeder extends Seeder
         ],
         'dp-analista' => [
             'messages.view-own',
+            'messages.manage',
+            'messages.send',
+            'messages.view-metrics',
             'intranet.access',
             'announcements.view',
             'policies.view',
@@ -132,6 +131,7 @@ class RolesAndPermissionsSeeder extends Seeder
             'payroll.manage',
         ],
         'dp-gestor' => [
+            'messages.archive',
             'admissions.approve',
             'employees.deactivate',
             'time-records.approve',

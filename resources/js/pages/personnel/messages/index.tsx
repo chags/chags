@@ -1,7 +1,7 @@
 import { Head, router } from '@inertiajs/react';
 import { Archive, Edit3, Mail, Plus, Send, Trash2, Users } from 'lucide-react';
-import {  useRef, useState } from 'react';
-import type {FormEvent} from 'react';
+import { useRef, useState } from 'react';
+import type { FormEvent } from 'react';
 
 type Message = {
     id: string;
@@ -25,7 +25,11 @@ const csrf = () =>
     document.querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
         ?.content ?? '';
 
-export default function HrMessagesIndex({ messages, users, abilities }: Props) {
+export default function PersonnelMessagesIndex({
+    messages,
+    users,
+    abilities,
+}: Props) {
     const dialog = useRef<HTMLDialogElement>(null);
     const [editing, setEditing] = useState<Message | null>(null);
     const [audience, setAudience] = useState<'user' | 'all'>('user');
@@ -50,13 +54,13 @@ export default function HrMessagesIndex({ messages, users, abilities }: Props) {
         const data = await response.json();
 
         if (!response.ok) {
-throw new Error(
+            throw new Error(
                 data.message ??
                     Object.values(data.errors ?? {})
                         .flat()
                         .join(' '),
             );
-}
+        }
 
         router.reload();
     };
@@ -68,7 +72,9 @@ throw new Error(
 
         try {
             await request(
-                editing ? `/hr/mensagens/${editing.id}` : '/hr/mensagens',
+                editing
+                    ? `/personnel/mensagens/${editing.id}`
+                    : '/personnel/mensagens',
                 editing ? 'PUT' : 'POST',
                 {
                     ...values,
@@ -95,19 +101,19 @@ throw new Error(
             operation === 'enviar' &&
             !confirm(`Enviar “${message.title}” agora?`)
         ) {
-return;
-}
+            return;
+        }
 
         if (
             operation === 'delete' &&
             !confirm(`Excluir o rascunho “${message.title}”?`)
         ) {
-return;
-}
+            return;
+        }
 
         try {
             await request(
-                `/hr/mensagens/${message.id}${operation === 'delete' ? '' : `/${operation}`}`,
+                `/personnel/mensagens/${message.id}${operation === 'delete' ? '' : `/${operation}`}`,
                 operation === 'delete' ? 'DELETE' : 'POST',
             );
         } catch (exception) {
@@ -128,7 +134,7 @@ return;
                 <section className="flex flex-wrap items-center justify-between gap-3">
                     <div>
                         <p className="text-sm font-semibold text-primary">
-                            Recursos Humanos
+                            Setor Pessoal
                         </p>
                         <h1 className="text-3xl font-bold">Mensagens</h1>
                         <p className="text-base-content/60">

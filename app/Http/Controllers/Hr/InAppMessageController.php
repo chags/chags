@@ -16,7 +16,7 @@ class InAppMessageController extends Controller
 {
     public function index(Request $request): Response
     {
-        return Inertia::render('hr/messages/index', [
+        return Inertia::render('personnel/messages/index', [
             'messages' => InAppMessage::query()
                 ->where('type', 'administrative')
                 ->with('creator:id,name')

@@ -231,28 +231,13 @@ export function AppSidebar({ collapsed = false }: Props) {
                                             </Link>
                                         </li>
                                     ))}
-                                    {auth.abilities.messagesManage && (
-                                        <li>
-                                            <Link
-                                                href="/hr/mensagens"
-                                                onClick={closeMobileDrawer}
-                                                className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl('/hr/mensagens') ? 'menu-active font-semibold' : ''}`}
-                                            >
-                                                <FontAwesomeIcon
-                                                    icon={faEnvelope}
-                                                    className="shrink-0"
-                                                    fixedWidth
-                                                />
-                                                <span>Mensagens</span>
-                                            </Link>
-                                        </li>
-                                    )}
                                 </ul>
                             )}
                         </li>
                     )}
                     {(auth.abilities.personnelView ||
-                        auth.abilities.timeApprovalsView) && (
+                        auth.abilities.timeApprovalsView ||
+                        auth.abilities.messagesManage) && (
                         <li className="mt-4">
                             <button
                                 type="button"
@@ -316,6 +301,22 @@ export function AppSidebar({ collapsed = false }: Props) {
                                                 <span>
                                                     Config. cartão de ponto
                                                 </span>
+                                            </Link>
+                                        </li>
+                                    )}
+                                    {auth.abilities.messagesManage && (
+                                        <li>
+                                            <Link
+                                                href="/personnel/mensagens"
+                                                onClick={closeMobileDrawer}
+                                                className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl('/personnel/mensagens') ? 'menu-active font-semibold' : ''}`}
+                                            >
+                                                <FontAwesomeIcon
+                                                    icon={faEnvelope}
+                                                    className="shrink-0"
+                                                    fixedWidth
+                                                />
+                                                <span>Mensagens</span>
                                             </Link>
                                         </li>
                                     )}
