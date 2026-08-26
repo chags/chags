@@ -1,3 +1,5 @@
+import 'dart:developer' as developer;
+
 import 'package:dio/dio.dart';
 import 'package:uuid/uuid.dart';
 
@@ -156,6 +158,13 @@ class ApiClient {
         final first = (body['errors'] as Map).values.first;
         if (first is List && first.isNotEmpty) message = first.first.toString();
       }
+      developer.log(
+        'Falha HTTP ${error.requestOptions.method} '
+        '${error.requestOptions.path}; status=${error.response?.statusCode}; '
+        'request_id=${error.response?.headers.value('x-request-id') ?? '-'}',
+        name: 'chags.api',
+        error: error.type,
+      );
       throw ApiException(message, statusCode: error.response?.statusCode);
     }
   }

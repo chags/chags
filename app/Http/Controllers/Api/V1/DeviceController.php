@@ -12,11 +12,21 @@ use App\Services\MobileApi\DeviceChallengeService;
 use App\Services\MobileApi\DeviceRegistrationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
+use Throwable;
 
 class DeviceController extends Controller
 {
     public function challenge(CreateDeviceChallengeRequest $request, DeviceChallengeService $service): JsonResponse
     {
+        Log::info('Mobile device challenge requested.', [
+            'user_id' => $request->user()->id,
+            'installation_id' => $request->string('installation_id')->toString(),
+            'platform' => $request->string('platform')->toString(),
+            'purpose' => $request->string('purpose')->toString(),
+            'ip' => $request->ip(),
+        ]);
+
         $created = $service->create(
             $request->user(),
             $request->string('installation_id')->toString(),
@@ -34,8 +44,34 @@ class DeviceController extends Controller
 
     public function register(RegisterDeviceRequest $request, DeviceRegistrationService $service): JsonResponse
     {
-        $challenge = DeviceChallenge::query()->findOrFail($request->string('challenge_id'));
-        $device = $service->register($request->user(), $challenge, $request->validated(), $request->ip());
+        $context = [
+            'user_id' => $request->user()->id,
+            'challenge_id' => $request->string('challenge_id')->toString(),
+            'installation_id' => $request->string('installation_id')->toString(),
+            'platform' => $request->input('device.platform'),
+            'app_version' => $request->input('app.version'),
+            'app_build' => $request->input('app.build'),
+            'ip' => $request->ip(),
+        ];
+
+        Log::info('Mobile device registration started.', $context);
+
+        try {
+            $challenge = DeviceChallenge::query()->findOrFail($request->string('challenge_id'));
+            $device = $service->register($request->user(), $challenge, $request->validated(), $request->ip());
+        } catch (Throwable $exception) {
+            Log::warning('Mobile device registration failed.', $context + [
+                'exception' => $exception::class,
+                'error' => $exception->getMessage(),
+            ]);
+
+            throw $exception;
+        }
+
+        Log::info('Mobile device registration completed.', $context + [
+            'device_id' => $device->id,
+            'status' => $device->status,
+        ]);
 
         return response()->json(['data' => $this->resource($device)], 201);
     }

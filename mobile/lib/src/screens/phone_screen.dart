@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'dart:developer' as developer;
 
 import '../core/api_client.dart';
 import '../core/device_identity_service.dart';
@@ -45,8 +46,21 @@ class _PhoneScreenState extends State<PhoneScreen> {
         ).ensureRegistered();
         widget.onAuthenticated();
       }
-    } catch (exception) {
-      setState(() => error = exception.toString());
+    } catch (exception, stackTrace) {
+      developer.log(
+        'Falha no fluxo de liberação do aplicativo.',
+        name: 'chags.app_unlock',
+        error: exception,
+        stackTrace: stackTrace,
+      );
+      setState(
+        () => error = exception is ApiException
+            ? exception.message
+            : exception is DeviceProtectionException
+            ? 'Não foi possível proteger este dispositivo '
+                  '(etapa: ${exception.stage}). Tente novamente.'
+            : 'Não foi possível concluir a liberação. Tente novamente.',
+      );
     } finally {
       if (mounted) setState(() => loading = false);
     }
