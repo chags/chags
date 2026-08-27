@@ -137,9 +137,9 @@ class TimeCardService
                 'occurrence' => $isFullHoliday
                     ? 'holiday'
                     : ($absence?->status === 'approved'
-                    ? 'medical_leave'
+                    ? ($absence->type === 'absence_declaration' ? 'absence_declaration' : 'medical_leave')
                     : ($absence?->status === 'pending'
-                    ? 'medical_pending'
+                    ? ($absence->type === 'absence_declaration' ? 'absence_declaration_pending' : 'medical_pending')
                     : ($exception?->type === 'hour_bank_leave'
                     ? 'hour_bank_leave'
                     : $this->occurrence($schedule, $dayEntries, $date)))),

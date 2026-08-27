@@ -1,4 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
+import AbsenceDocumentModal from '@/components/absence-document-modal';
 import {
     BriefcaseBusiness,
     CalendarDays,
@@ -44,6 +45,7 @@ type Props = {
     } | null;
     pendingAdjustments: number;
     tracksTime: boolean;
+    canSubmitAbsenceDocument: boolean;
 };
 
 const minutesToHours = (minutes: number) => {
@@ -66,6 +68,7 @@ export default function VirtualOfficeDashboard({
     vacation,
     pendingAdjustments,
     tracksTime,
+    canSubmitAbsenceDocument,
 }: Props) {
     const employmentSummary = [
         employee.position,
@@ -152,12 +155,17 @@ export default function VirtualOfficeDashboard({
                                     </p>
                                 </div>
                                 {tracksTime && (
-                                    <Link
-                                        href="/virtual-office/time-card"
-                                        className="btn btn-primary btn-sm"
-                                    >
-                                        Abrir cartão de ponto
-                                    </Link>
+                                    <div className="flex flex-wrap gap-2">
+                                        {canSubmitAbsenceDocument && (
+                                            <AbsenceDocumentModal />
+                                        )}
+                                        <Link
+                                            href="/virtual-office/time-card"
+                                            className="btn btn-primary"
+                                        >
+                                            Abrir cartão de ponto
+                                        </Link>
+                                    </div>
                                 )}
                             </div>
 

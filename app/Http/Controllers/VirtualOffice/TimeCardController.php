@@ -24,7 +24,6 @@ class TimeCardController extends Controller
         return Inertia::render('virtual-office/time-card/index', [
             'timeCard' => $timeCardService->forMonth($request->user(), $month),
             'canRequestAdjustment' => $request->user()->can('time-records.request-adjustment'),
-            'canSubmitMedicalCertificate' => $request->user()->can('medical-certificates.submit'),
         ]);
     }
 }

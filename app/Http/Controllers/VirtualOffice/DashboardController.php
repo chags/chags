@@ -52,6 +52,7 @@ class DashboardController extends Controller
             ] : null,
             'pendingAdjustments' => $user->timeAdjustmentRequests()->where('status', 'pending')->count(),
             'tracksTime' => $user->tracks_time,
+            'canSubmitAbsenceDocument' => $user->can('medical-certificates.submit'),
         ]);
     }
 }

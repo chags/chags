@@ -612,8 +612,9 @@ test('a medical certificate is stored privately and can be approved to excuse th
 
     $this->actingAs($employee)
         ->postJson('/virtual-office/medical-certificates', [
+            'type' => 'medical_certificate',
             'starts_on' => '2026-08-19',
-            'ends_on' => '2026-08-19',
+            'ends_on' => '2026-08-20',
             'reason' => 'Ausência médica durante toda a jornada de trabalho.',
             'document' => UploadedFile::fake()->create('atestado.pdf', 100, 'application/pdf'),
         ])
@@ -637,9 +638,53 @@ test('a medical certificate is stored privately and can be approved to excuse th
         ->assertInertia(fn (Assert $page) => $page
             ->where('timeCard.days.18.occurrence', 'medical_leave')
             ->where('timeCard.days.18.excusedMinutes', 480)
-            ->where('timeCard.days.18.expectedMinutes', 0));
+            ->where('timeCard.days.18.expectedMinutes', 0)
+            ->where('timeCard.days.19.occurrence', 'medical_leave')
+            ->where('timeCard.days.19.excusedMinutes', 480)
+            ->where('timeCard.days.19.expectedMinutes', 0));
 
     expect($employee->hourBankTransactions()->sum('minutes'))->toBe(0);
+});
+
+test('an absence declaration requires a same-day hourly interval', function () {
+    Storage::fake('local');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('colaborador');
+    createEmployee($employee);
+
+    $this->actingAs($employee)
+        ->postJson('/virtual-office/medical-certificates', [
+            'type' => 'absence_declaration',
+            'starts_on' => '2026-08-19',
+            'ends_on' => '2026-08-19',
+            'starts_at' => '09:00',
+            'ends_at' => '11:00',
+            'reason' => 'Comparecimento a consulta durante parte da jornada.',
+            'document' => UploadedFile::fake()->create('declaracao.pdf', 100, 'application/pdf'),
+        ])
+        ->assertCreated();
+
+    $this->assertDatabaseHas('absence_justifications', [
+        'user_id' => $employee->id,
+        'type' => 'absence_declaration',
+        'starts_on' => '2026-08-19 00:00:00',
+        'ends_on' => '2026-08-19 00:00:00',
+        'starts_at' => '09:00',
+        'ends_at' => '11:00',
+    ]);
+
+    $this->actingAs($employee)
+        ->postJson('/virtual-office/medical-certificates', [
+            'type' => 'absence_declaration',
+            'starts_on' => '2026-08-19',
+            'ends_on' => '2026-08-20',
+            'starts_at' => '09:00',
+            'ends_at' => '11:00',
+            'reason' => 'Declaração inválida abrangendo mais de um dia.',
+            'document' => UploadedFile::fake()->create('declaracao.pdf', 100, 'application/pdf'),
+        ])
+        ->assertUnprocessable()
+        ->assertJsonValidationErrors('ends_on');
 });
 
 test('a manager approval credits a complete overtime pair to the hour bank', function () {

@@ -35,6 +35,8 @@ type Day = {
         | 'holiday'
         | 'medical_leave'
         | 'medical_pending'
+        | 'absence_declaration'
+        | 'absence_declaration_pending'
         | null;
     dayType:
         | 'workday'
@@ -57,7 +59,6 @@ type Props = {
         days: Day[];
     };
     canRequestAdjustment: boolean;
-    canSubmitMedicalCertificate: boolean;
     employeeName?: string;
     managedView?: boolean;
 };
@@ -104,7 +105,6 @@ const entryStatusClass = {
 export default function TimeCardIndex({
     timeCard,
     canRequestAdjustment,
-    canSubmitMedicalCertificate,
     employeeName,
     managedView = false,
 }: Props) {
@@ -114,7 +114,6 @@ export default function TimeCardIndex({
     const [times, setTimes] = useState<Record<string, string>>({});
     const [error, setError] = useState('');
     const [processing, setProcessing] = useState(false);
-    const [certificateMessage, setCertificateMessage] = useState('');
 
     const changeMonth = (offset: number) => {
         const [year, month] = timeCard.month.split('-').map(Number);
@@ -174,55 +173,6 @@ export default function TimeCardIndex({
                 onFinish: () => setProcessing(false),
             },
         );
-    };
-
-    const submitMedicalCertificate = async (
-        event: FormEvent<HTMLFormElement>,
-    ) => {
-        event.preventDefault();
-        setProcessing(true);
-        setCertificateMessage('');
-        const form = event.currentTarget;
-        const data = new FormData(form);
-        const csrf = document.querySelector<HTMLMetaElement>(
-            'meta[name="csrf-token"]',
-        )?.content;
-
-        try {
-            const response = await fetch(
-                '/virtual-office/medical-certificates',
-                {
-                    method: 'POST',
-                    headers: {
-                        Accept: 'application/json',
-                        'X-CSRF-TOKEN': csrf ?? '',
-                    },
-                    body: data,
-                },
-            );
-            const result = await response.json();
-
-            if (!response.ok) {
-                throw new Error(
-                    result.message ??
-                        Object.values(result.errors ?? {})
-                            .flat()
-                            .join(' '),
-                );
-            }
-
-            setCertificateMessage(result.message);
-            form.reset();
-            router.reload({ only: ['timeCard'] });
-        } catch (certificateError) {
-            setCertificateMessage(
-                certificateError instanceof Error
-                    ? certificateError.message
-                    : 'Não foi possível enviar o atestado.',
-            );
-        } finally {
-            setProcessing(false);
-        }
     };
 
     const monthLabel = new Intl.DateTimeFormat('pt-BR', {
@@ -298,99 +248,6 @@ export default function TimeCardIndex({
                         value={minutesToHours(timeCard.currentBalanceMinutes)}
                     />
                 </section>
-
-                {canSubmitMedicalCertificate && (
-                    <details className="collapse-arrow collapse border border-base-300 bg-base-100 shadow-sm">
-                        <summary className="collapse-title font-semibold">
-                            Enviar atestado médico
-                        </summary>
-                        <form
-                            className="collapse-content space-y-4"
-                            onSubmit={submitMedicalCertificate}
-                        >
-                            {certificateMessage && (
-                                <div className="alert alert-info">
-                                    {certificateMessage}
-                                </div>
-                            )}
-                            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-                                <label className="fieldset">
-                                    <span className="fieldset-legend">
-                                        Data inicial
-                                    </span>
-                                    <input
-                                        name="starts_on"
-                                        type="date"
-                                        className="input w-full"
-                                        required
-                                    />
-                                </label>
-                                <label className="fieldset">
-                                    <span className="fieldset-legend">
-                                        Data final
-                                    </span>
-                                    <input
-                                        name="ends_on"
-                                        type="date"
-                                        className="input w-full"
-                                        required
-                                    />
-                                </label>
-                                <label className="fieldset">
-                                    <span className="fieldset-legend">
-                                        Início parcial
-                                    </span>
-                                    <input
-                                        name="starts_at"
-                                        type="time"
-                                        className="input w-full"
-                                    />
-                                </label>
-                                <label className="fieldset">
-                                    <span className="fieldset-legend">
-                                        Fim parcial
-                                    </span>
-                                    <input
-                                        name="ends_at"
-                                        type="time"
-                                        className="input w-full"
-                                    />
-                                </label>
-                            </div>
-                            <label className="fieldset">
-                                <span className="fieldset-legend">
-                                    Justificativa
-                                </span>
-                                <textarea
-                                    name="reason"
-                                    className="textarea min-h-20 w-full"
-                                    minLength={10}
-                                    required
-                                />
-                            </label>
-                            <label className="fieldset">
-                                <span className="fieldset-legend">
-                                    Documento (PDF, JPG ou PNG; até 5 MB)
-                                </span>
-                                <input
-                                    name="document"
-                                    type="file"
-                                    accept="application/pdf,image/jpeg,image/png"
-                                    className="file-input w-full"
-                                    required
-                                />
-                            </label>
-                            <div className="flex justify-end">
-                                <button
-                                    className="btn btn-primary"
-                                    disabled={processing}
-                                >
-                                    Enviar para análise
-                                </button>
-                            </div>
-                        </form>
-                    </details>
-                )}
 
                 <section className="card border border-base-300 bg-base-100 shadow-sm">
                     <div className="card-body p-0 sm:p-4">
@@ -556,6 +413,16 @@ export default function TimeCardIndex({
                                                     <span className="badge badge-sm badge-success">
                                                         Ausência abonada —
                                                         Atestado
+                                                    </span>
+                                                ) : day.occurrence ===
+                                                  'absence_declaration' ? (
+                                                    <span className="badge badge-sm badge-success">
+                                                        Ausência abonada — Declaração
+                                                    </span>
+                                                ) : day.occurrence ===
+                                                  'absence_declaration_pending' ? (
+                                                    <span className="badge badge-sm badge-warning">
+                                                        Declaração em análise
                                                     </span>
                                                 ) : day.occurrence ===
                                                   'medical_pending' ? (

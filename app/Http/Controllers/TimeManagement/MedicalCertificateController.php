@@ -16,18 +16,22 @@ class MedicalCertificateController extends Controller
 {
     public function store(StoreMedicalCertificateRequest $request): JsonResponse
     {
+        $validated = $request->validated();
         $document = $request->file('document');
         $path = $document->store("medical-certificates/{$request->user()->id}", 'local');
 
         $request->user()->absenceJustifications()->create([
             ...$request->safe()->except('document'),
-            'type' => 'medical_certificate',
             'document_path' => $path,
             'original_filename' => $document->getClientOriginalName(),
             'status' => 'pending',
         ]);
 
-        return response()->json(['message' => 'Atestado enviado para análise.', 'status' => 'pending'], 201);
+        $message = $validated['type'] === 'absence_declaration'
+            ? 'Declaração salva com sucesso!'
+            : 'Atestado salvo com sucesso!';
+
+        return response()->json(['message' => $message, 'status' => 'pending'], 201);
     }
 
     public function download(Request $request, AbsenceJustification $justification): StreamedResponse

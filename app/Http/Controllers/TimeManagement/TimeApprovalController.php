@@ -101,6 +101,7 @@ class TimeApprovalController extends Controller
             ->map(fn (AbsenceJustification $certificate) => [
                 'id' => $certificate->id,
                 'employee' => $certificate->user->name,
+                'type' => $certificate->type,
                 'startsOn' => $certificate->starts_on->format('Y-m-d'),
                 'endsOn' => $certificate->ends_on->format('Y-m-d'),
                 'startsAt' => $certificate->starts_at ? substr($certificate->starts_at, 0, 5) : null,
