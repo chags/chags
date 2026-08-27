@@ -105,6 +105,41 @@ test('a collaborator with an active employee profile can view the virtual office
             ->where('pendingAdjustments', 0));
 });
 
+test('the dashboard uses the business date and displays todays punches', function () {
+    CarbonImmutable::setTestNow(CarbonImmutable::parse('2026-08-21 01:00:00', 'UTC'));
+    $user = User::factory()->create(['tracks_time' => true]);
+    $user->assignRole('colaborador');
+    createEmployee($user);
+    EmployeeWorkSchedule::query()->create([
+        'user_id' => $user->id,
+        'name' => 'Administrativa',
+        'weekdays' => [1, 2, 3, 4, 5],
+        'start_time' => '08:00',
+        'break_start_time' => '12:00',
+        'break_end_time' => '13:00',
+        'end_time' => '17:00',
+        'daily_minutes' => 480,
+        'weekly_minutes' => 2400,
+        'valid_from' => '2026-01-01',
+        'active' => true,
+    ]);
+    TimeEntry::query()->create([
+        'user_id' => $user->id,
+        'recorded_at' => '2026-08-21 00:30:00',
+        'type' => 'clock_in',
+        'source' => 'web',
+    ]);
+
+    $this->actingAs($user)
+        ->get('/virtual-office')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->where('today.date', '2026-08-20')
+            ->where('today.schedule.start', '08:00')
+            ->where('today.entries.0.type', 'clock_in')
+            ->where('today.entries.0.time', '21:30'));
+});
+
 test('the time card calculates worked time and hour bank balance', function () {
     $user = User::factory()->create();
     $user->assignRole('colaborador');
@@ -625,6 +660,14 @@ test('a medical certificate is stored privately and can be approved to excuse th
     Storage::disk('local')->assertExists($certificate->document_path);
 
     $this->actingAs($manager)
+        ->get('/personnel/medical-certificates?status=pending')
+        ->assertOk()
+        ->assertInertia(fn (Assert $page) => $page
+            ->component('personnel/medical-certificates/index')
+            ->where('documents.data.0.employee', $employee->name)
+            ->where('documents.data.0.status', 'pending'));
+
+    $this->actingAs($manager)
         ->patchJson("/personnel/medical-certificates/{$certificate->id}", [
             'decision' => 'approve',
             'notes' => 'Documento conferido.',
@@ -638,12 +681,16 @@ test('a medical certificate is stored privately and can be approved to excuse th
         ->assertInertia(fn (Assert $page) => $page
             ->where('timeCard.days.18.occurrence', 'medical_leave')
             ->where('timeCard.days.18.excusedMinutes', 480)
-            ->where('timeCard.days.18.expectedMinutes', 0)
+            ->where('timeCard.days.18.expectedMinutes', 480)
+            ->where('timeCard.days.18.workedMinutes', 480)
+            ->where('timeCard.days.18.entries.0.source', 'medical_certificate')
             ->where('timeCard.days.19.occurrence', 'medical_leave')
             ->where('timeCard.days.19.excusedMinutes', 480)
-            ->where('timeCard.days.19.expectedMinutes', 0));
+            ->where('timeCard.days.19.expectedMinutes', 480)
+            ->where('timeCard.days.19.workedMinutes', 480));
 
     expect($employee->hourBankTransactions()->sum('minutes'))->toBe(0);
+    expect($certificate->timeEntries()->count())->toBe(8);
 });
 
 test('an absence declaration requires a same-day hourly interval', function () {

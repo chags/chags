@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['user_id', 'recorded_at', 'work_date', 'type', 'source', 'status', 'reason', 'notes', 'ip_address', 'created_by', 'time_adjustment_request_id', 'reviewed_by', 'reviewed_at', 'review_notes'])]
+#[Fillable(['user_id', 'recorded_at', 'work_date', 'type', 'source', 'status', 'reason', 'notes', 'ip_address', 'created_by', 'time_adjustment_request_id', 'absence_justification_id', 'reviewed_by', 'reviewed_at', 'review_notes'])]
 class TimeEntry extends Model
 {
     /** @use HasFactory<TimeEntryFactory> */
@@ -44,6 +44,11 @@ class TimeEntry extends Model
     public function adjustmentRequest(): BelongsTo
     {
         return $this->belongsTo(TimeAdjustmentRequest::class, 'time_adjustment_request_id');
+    }
+
+    public function absenceJustification(): BelongsTo
+    {
+        return $this->belongsTo(AbsenceJustification::class);
     }
 
     public function reviewer(): BelongsTo

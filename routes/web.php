@@ -138,6 +138,7 @@ Route::middleware($authenticatedMiddleware)->group(function () {
         Route::patch('time-entries/{entry}', [TimeEntryReviewController::class, 'update'])->name('time-entries.update');
         Route::post('work-schedule-exceptions', [WorkScheduleExceptionController::class, 'store'])->name('work-schedule-exceptions.store');
         Route::delete('work-schedule-exceptions/{exception}', [WorkScheduleExceptionController::class, 'destroy'])->name('work-schedule-exceptions.destroy');
+        Route::get('medical-certificates', [MedicalCertificateReviewController::class, 'index'])->name('medical-certificates.index');
         Route::patch('medical-certificates/{justification}', [MedicalCertificateReviewController::class, 'update'])->name('medical-certificates.update');
     });
 });

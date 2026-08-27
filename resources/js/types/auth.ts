@@ -37,6 +37,7 @@ export type Auth = {
         tracksTime: boolean;
         personnelView: boolean;
         timeApprovalsView: boolean;
+        medicalCertificatesReview: boolean;
         medicalCertificateSubmit: boolean;
         messagesViewOwn: boolean;
         messagesManage: boolean;

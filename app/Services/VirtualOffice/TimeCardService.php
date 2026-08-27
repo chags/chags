@@ -97,7 +97,10 @@ class TimeCardService
             $excusedMinutes = $absence?->status === 'approved'
                 ? $this->excusedMinutes($absence, (int) ($schedule['daily_minutes'] ?? 0))
                 : 0;
-            $expectedForDay = max(0, (int) ($schedule['daily_minutes'] ?? 0) - $excusedMinutes);
+            $scheduledMinutes = (int) ($schedule['daily_minutes'] ?? 0);
+            $expectedForDay = $absence?->status === 'approved' && $absence->type === 'medical_certificate'
+                ? $scheduledMinutes
+                : max(0, $scheduledMinutes - $excusedMinutes);
             $dayWorked = $this->workedMinutes($dayEntries);
             $dayBalance = (int) $transactions->get($dateKey, collect())->sum('minutes');
             $runningBalance += $dayBalance;

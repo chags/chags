@@ -172,26 +172,55 @@ export default function VirtualOfficeDashboard({
                             {tracksTime ? (
                                 <div className="mt-3 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
                                     {[
-                                        ['Entrada', 'clock_in'],
-                                        ['Início do intervalo', 'break_start'],
-                                        ['Fim do intervalo', 'break_end'],
-                                        ['Saída', 'clock_out'],
-                                    ].map(([label, type]) => (
-                                        <div
-                                            key={type}
-                                            className="rounded-box bg-base-200 p-4"
-                                        >
-                                            <p className="text-xs text-base-content/55">
-                                                {label}
-                                            </p>
-                                            <p className="mt-1 text-xl font-bold">
-                                                {today?.entries.find(
-                                                    (entry) =>
-                                                        entry.type === type,
-                                                )?.time ?? '--:--'}
-                                            </p>
-                                        </div>
-                                    ))}
+                                        ['Entrada', 'clock_in', 'start'],
+                                        [
+                                            'Início do intervalo',
+                                            'break_start',
+                                            'breakStart',
+                                        ],
+                                        [
+                                            'Fim do intervalo',
+                                            'break_end',
+                                            'breakEnd',
+                                        ],
+                                        ['Saída', 'clock_out', 'end'],
+                                    ].map(([label, type, scheduleKey]) => {
+                                        const entry = today?.entries.find(
+                                            (item) => item.type === type,
+                                        );
+                                        const scheduledTime = today?.schedule?.[
+                                            scheduleKey as keyof NonNullable<
+                                                DaySummary
+                                            >['schedule']
+                                        ];
+
+                                        return (
+                                            <div
+                                                key={type}
+                                                className="rounded-box bg-base-200 p-4"
+                                            >
+                                                <p className="text-xs text-base-content/55">
+                                                    {label}
+                                                </p>
+                                                <div className="mt-1 flex items-center justify-between gap-2">
+                                                    <p className="text-xl font-bold">
+                                                        {entry?.time ??
+                                                            scheduledTime ??
+                                                            '--:--'}
+                                                    </p>
+                                                    {(entry || scheduledTime) && (
+                                                        <span
+                                                            className={`badge badge-sm ${entry ? 'badge-success' : 'badge-ghost'}`}
+                                                        >
+                                                            {entry
+                                                                ? 'Realizado'
+                                                                : 'Previsto'}
+                                                        </span>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <p className="mt-3 text-base-content/60">

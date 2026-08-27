@@ -316,7 +316,7 @@ export default function TimeCardIndex({
                                                                             type
                                                                         ]
                                                                     }
-                                                                    className={`badge badge-sm ${entry ? entryStatusClass[entry.status] : 'badge-ghost'}`}
+                                                                    className={`badge badge-sm ${entry?.source === 'medical_certificate' ? 'badge-info' : entry ? entryStatusClass[entry.status] : 'badge-ghost'}`}
                                                                 >
                                                                     {entry?.time ??
                                                                         '--:--'}
@@ -410,7 +410,7 @@ export default function TimeCardIndex({
                                             <td>
                                                 {day.occurrence ===
                                                 'medical_leave' ? (
-                                                    <span className="badge badge-sm badge-success">
+                                                    <span className="badge badge-sm badge-info">
                                                         Ausência abonada —
                                                         Atestado
                                                     </span>

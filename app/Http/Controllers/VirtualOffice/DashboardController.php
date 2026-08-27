@@ -18,7 +18,7 @@ class DashboardController extends Controller
     {
         $user = $request->user()->load(['employeeProfile.department:id,name', 'employeeProfile.position:id,title,level']);
         $employee = $user->employeeProfile;
-        $today = CarbonImmutable::today();
+        $today = CarbonImmutable::today(config('app.business_timezone'));
         $timeCard = $user->tracks_time ? $timeCardService->forMonth($user, $today) : null;
         $todaySummary = $timeCard
             ? collect($timeCard['days'])->firstWhere('date', $today->toDateString())

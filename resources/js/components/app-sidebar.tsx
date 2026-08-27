@@ -6,6 +6,7 @@ import { faClipboardCheck } from '@fortawesome/free-solid-svg-icons/faClipboardC
 import { faClock } from '@fortawesome/free-solid-svg-icons/faClock';
 import { faEnvelope } from '@fortawesome/free-solid-svg-icons/faEnvelope';
 import { faFileLines } from '@fortawesome/free-solid-svg-icons/faFileLines';
+import { faFileMedical } from '@fortawesome/free-solid-svg-icons/faFileMedical';
 import { faGaugeHigh } from '@fortawesome/free-solid-svg-icons/faGaugeHigh';
 import { faHouse } from '@fortawesome/free-solid-svg-icons/faHouse';
 import { faIdBadge } from '@fortawesome/free-solid-svg-icons/faIdBadge';
@@ -283,6 +284,22 @@ export function AppSidebar({ collapsed = false }: Props) {
                                                     fixedWidth
                                                 />
                                                 <span>Aprovações de ponto</span>
+                                            </Link>
+                                        </li>
+                                    )}
+                                    {auth.abilities.medicalCertificatesReview && (
+                                        <li>
+                                            <Link
+                                                href="/personnel/medical-certificates"
+                                                onClick={closeMobileDrawer}
+                                                className={`!flex min-h-10 items-center gap-2 text-sm ${isCurrentUrl('/personnel/medical-certificates') ? 'menu-active font-semibold' : ''}`}
+                                            >
+                                                <FontAwesomeIcon
+                                                    icon={faFileMedical}
+                                                    className="shrink-0"
+                                                    fixedWidth
+                                                />
+                                                <span>Aprovar atestados</span>
                                             </Link>
                                         </li>
                                     )}
