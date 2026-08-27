@@ -439,7 +439,7 @@ export default function TimeCardIndex({
                                                         }
                                                     >
                                                         <span
-                                                            className="badge badge-sm cursor-help badge-info"
+                                                            className="badge badge-sm cursor-help border-purple-600 bg-purple-600 text-white"
                                                             tabIndex={0}
                                                             aria-label={
                                                                 day.holiday

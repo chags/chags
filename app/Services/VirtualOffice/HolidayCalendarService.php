@@ -28,7 +28,14 @@ class HolidayCalendarService
 
     public function coversWholeDay(Holiday $holiday): bool
     {
-        return ! $holiday->starts_at && ! $holiday->ends_at;
+        if (! $holiday->starts_at && ! $holiday->ends_at) {
+            return true;
+        }
+
+        return $holiday->starts_at !== null
+            && $holiday->ends_at !== null
+            && substr($holiday->starts_at, 0, 5) === '00:00'
+            && substr($holiday->ends_at, 0, 5) === '23:59';
     }
 
     public function coversTime(Holiday $holiday, CarbonImmutable $dateTime): bool

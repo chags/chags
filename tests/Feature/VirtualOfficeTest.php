@@ -603,6 +603,8 @@ test('a holiday removes expected hours and sends punches for approval', function
         'company_id' => $profile->company_id,
         'name' => 'Feriado da unidade',
         'holiday_date' => '2026-08-20',
+        'starts_at' => '00:00',
+        'ends_at' => '23:59',
         'scope' => 'company',
         'active' => true,
         'created_by' => $manager->id,
