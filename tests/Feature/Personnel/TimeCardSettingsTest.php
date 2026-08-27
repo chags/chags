@@ -9,13 +9,11 @@ beforeEach(function () {
     $this->seed(RolesAndPermissionsSeeder::class);
 });
 
-test('department personnel can create a schedule group and assign a time tracking user', function () {
+test('department personnel can create update and delete schedule groups', function () {
     $manager = User::factory()->create();
     $manager->assignRole('dp-analista');
-    $employee = User::factory()->create(['tracks_time' => true]);
-    $employee->assignRole('colaborador');
 
-    $this->actingAs($manager)->get('/personnel/time-card-settings')->assertOk()->assertInertia(fn (Assert $page) => $page->component('personnel/time-card-settings/index')->where('metrics.tracksTimeUsers', 1));
+    $this->actingAs($manager)->get('/personnel/time-card-settings')->assertOk()->assertInertia(fn (Assert $page) => $page->component('personnel/time-card-settings/index')->where('metrics.totalGroups', 0));
 
     $response = $this->actingAs($manager)->postJson('/personnel/time-card-settings/groups', [
         'name' => 'Comercial', 'description' => 'Segunda a sexta', 'schedule_type' => '5x2', 'weekly_minutes' => 2640,
@@ -39,8 +37,10 @@ test('department personnel can create a schedule group and assign a time trackin
         'days' => [['day_index' => 1, 'label' => 'Segunda', 'is_workday' => true, 'start_time' => '08:00:00', 'break_start_time' => '12:00:00', 'break_end_time' => '13:00:00', 'end_time' => '17:00:00', 'expected_minutes' => 480]],
     ])->assertOk();
 
-    $this->actingAs($manager)->postJson('/personnel/time-card-settings/assignments', ['work_schedule_group_id' => $response->json('id'), 'user_id' => $employee->id, 'valid_from' => '2026-08-01'])->assertOk();
-    $this->assertDatabaseHas('work_schedule_assignments', ['user_id' => $employee->id, 'work_schedule_group_id' => $response->json('id'), 'active' => true]);
+    $this->actingAs($manager)
+        ->deleteJson('/personnel/time-card-settings/groups/'.$secondGroup->json('id'))
+        ->assertOk();
+    $this->assertDatabaseMissing('work_schedule_groups', ['id' => $secondGroup->json('id')]);
 });
 
 test('a collaborator cannot manage time card settings', function () {

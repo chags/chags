@@ -431,12 +431,25 @@ export default function TimeCardIndex({
                                                     </span>
                                                 ) : day.occurrence ===
                                                   'holiday' ? (
-                                                    <span className="badge badge-sm badge-info">
-                                                        Feriado
-                                                        {day.holiday
-                                                            ? ` — ${day.holiday.name}`
-                                                            : ''}
-                                                    </span>
+                                                    <div
+                                                        className="tooltip tooltip-left"
+                                                        data-tip={
+                                                            day.holiday?.name ??
+                                                            'Feriado'
+                                                        }
+                                                    >
+                                                        <span
+                                                            className="badge badge-sm cursor-help badge-info"
+                                                            tabIndex={0}
+                                                            aria-label={
+                                                                day.holiday
+                                                                    ? `Feriado: ${day.holiday.name}`
+                                                                    : 'Feriado'
+                                                            }
+                                                        >
+                                                            Feriado
+                                                        </span>
+                                                    </div>
                                                 ) : day.occurrence ===
                                                   'hour_bank_leave' ? (
                                                     <span className="badge badge-sm badge-success">

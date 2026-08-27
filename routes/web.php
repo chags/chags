@@ -127,7 +127,6 @@ Route::middleware($authenticatedMiddleware)->group(function () {
         Route::post('time-card-settings/groups', [TimeCardSettingsController::class, 'store'])->name('time-card-settings.groups.store');
         Route::put('time-card-settings/groups/{group}', [TimeCardSettingsController::class, 'update'])->name('time-card-settings.groups.update');
         Route::delete('time-card-settings/groups/{group}', [TimeCardSettingsController::class, 'destroy'])->name('time-card-settings.groups.destroy');
-        Route::post('time-card-settings/assignments', [TimeCardSettingsController::class, 'assign'])->name('time-card-settings.assignments.store');
         Route::post('holidays', [HolidayController::class, 'store'])->name('holidays.store');
     });
 

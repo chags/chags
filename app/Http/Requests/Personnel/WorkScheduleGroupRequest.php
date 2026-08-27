@@ -5,6 +5,7 @@ namespace App\Http\Requests\Personnel;
 use Illuminate\Contracts\Validation\ValidationRule;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Validator;
 
 class WorkScheduleGroupRequest extends FormRequest
 {
@@ -75,5 +76,41 @@ class WorkScheduleGroupRequest extends FormRequest
         return [
             'name.unique' => 'Já existe um grupo com este nome e este tipo de escala.',
         ];
+    }
+
+    public function after(): array
+    {
+        return [function (Validator $validator): void {
+            foreach ($this->input('days', []) as $index => $day) {
+                if (! ($day['is_workday'] ?? false)) {
+                    continue;
+                }
+
+                $start = $day['start_time'] ?? null;
+                $breakStart = $day['break_start_time'] ?? null;
+                $breakEnd = $day['break_end_time'] ?? null;
+                $end = $day['end_time'] ?? null;
+
+                if (! $start || ! $end) {
+                    $validator->errors()->add("days.{$index}.start_time", 'Informe a entrada e a saída de todos os dias trabalhados.');
+
+                    continue;
+                }
+
+                if (($breakStart && ! $breakEnd) || (! $breakStart && $breakEnd)) {
+                    $validator->errors()->add("days.{$index}.break_start_time", 'Informe o início e o fim do intervalo.');
+
+                    continue;
+                }
+
+                $ordered = $breakStart && $breakEnd
+                    ? $start < $breakStart && $breakStart < $breakEnd && $breakEnd < $end
+                    : $start < $end;
+
+                if (! $ordered) {
+                    $validator->errors()->add("days.{$index}.start_time", 'Os horários de cada jornada devem estar em ordem cronológica.');
+                }
+            }
+        }];
     }
 }

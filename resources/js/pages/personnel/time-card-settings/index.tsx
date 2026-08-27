@@ -1,7 +1,8 @@
 import { Head, router } from '@inertiajs/react';
-import { CalendarClock, Pencil, Plus, UsersRound } from 'lucide-react';
+import { CalendarClock, CalendarPlus, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useRef, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
+import { toast } from 'sonner';
 
 type Day = {
     day_index: number;
@@ -29,34 +30,17 @@ type Group = {
     days: Day[];
     assignments_count: number;
 };
-type User = {
-    id: number;
-    name: string;
-    email: string;
-    group: { id: number; name: string; schedule_type: string } | null;
-};
 type Props = {
     groups: Group[];
-    users: User[];
     metrics: {
         activeGroups: number;
-        tracksTimeUsers: number;
-        unassignedUsers: number;
+        totalGroups: number;
     };
     companies: Array<{
         id: number;
         unit_name: string;
         city: string;
         state: string;
-    }>;
-    holidays: Array<{
-        id: number;
-        name: string;
-        holiday_date: string;
-        scope: string;
-        starts_at: string | null;
-        ends_at: string | null;
-        company: { id: number; unit_name: string } | null;
     }>;
 };
 
@@ -122,12 +106,11 @@ const defaultDays = (type: string): Day[] => {
 
 export default function TimeCardSettings({
     groups,
-    users,
     metrics,
     companies,
-    holidays,
 }: Props) {
     const dialog = useRef<HTMLDialogElement>(null);
+    const holidayDialog = useRef<HTMLDialogElement>(null);
     const [editing, setEditing] = useState<Group | null>(null);
     const [type, setType] = useState('5x2');
     const [days, setDays] = useState<Day[]>(defaultDays('5x2'));
@@ -174,7 +157,7 @@ export default function TimeCardSettings({
         const values = Object.fromEntries(new FormData(event.currentTarget));
 
         try {
-            await request(
+            const data = await request(
                 editing
                     ? `/personnel/time-card-settings/groups/${editing.id}`
                     : '/personnel/time-card-settings/groups',
@@ -203,6 +186,7 @@ export default function TimeCardSettings({
                 },
             );
             dialog.current?.close();
+            toast.success(data.message, { duration: 18_000 });
             router.reload();
         } catch (error) {
             setMessage(
@@ -212,23 +196,24 @@ export default function TimeCardSettings({
             setBusy(false);
         }
     };
-    const assign = async (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        setBusy(true);
-        setMessage('');
-        const values = Object.fromEntries(new FormData(event.currentTarget));
+    const remove = async (group: Group) => {
+        if (!window.confirm(`Deseja realmente excluir o grupo “${group.name}”?`)) {
+            return;
+        }
 
+        setBusy(true);
         try {
             const data = await request(
-                '/personnel/time-card-settings/assignments',
-                'POST',
-                values,
+                `/personnel/time-card-settings/groups/${group.id}`,
+                'DELETE',
+                {},
             );
-            setMessage(data.message);
-            router.reload();
+            toast.success(data.message, { duration: 18_000 });
+            router.reload({ only: ['groups', 'metrics'] });
         } catch (error) {
-            setMessage(
-                error instanceof Error ? error.message : 'Erro ao vincular.',
+            toast.error(
+                error instanceof Error ? error.message : 'Erro ao excluir.',
+                { duration: 18_000 },
             );
         } finally {
             setBusy(false);
@@ -250,14 +235,15 @@ export default function TimeCardSettings({
                 starts_at: values.starts_at || null,
                 ends_at: values.ends_at || null,
             });
-            setMessage(data.message);
             form.reset();
-            router.reload({ only: ['holidays'] });
+            holidayDialog.current?.close();
+            toast.success(data.message, { duration: 18_000 });
         } catch (error) {
-            setMessage(
+            toast.error(
                 error instanceof Error
                     ? error.message
                     : 'Erro ao cadastrar feriado.',
+                { duration: 18_000 },
             );
         } finally {
             setBusy(false);
@@ -277,190 +263,37 @@ export default function TimeCardSettings({
                             Configuração do Cartão de Ponto
                         </h1>
                         <p className="mt-2 text-base-content/60">
-                            Crie grupos, defina escalas e aplique as regras aos
-                            usuários.
+                            Cadastre e mantenha os horários disponíveis para
+                            vinculação no cadastro de usuários.
                         </p>
                     </div>
-                    <button className="btn btn-primary" onClick={() => open()}>
-                        <Plus className="size-4" />
-                        Novo grupo
-                    </button>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            className="btn btn-outline"
+                            onClick={() => holidayDialog.current?.showModal()}
+                        >
+                            <CalendarPlus className="size-4" />
+                            Cadastrar feriado
+                        </button>
+                        <button className="btn btn-primary" onClick={() => open()}>
+                            <Plus className="size-4" />
+                            Novo grupo
+                        </button>
+                    </div>
                 </section>
-                <section className="grid gap-4 md:grid-cols-3">
+                <section className="grid gap-4 md:grid-cols-2">
                     <Metric
                         label="Grupos ativos"
                         value={metrics.activeGroups}
                         icon={CalendarClock}
                     />
                     <Metric
-                        label="Usuários que batem ponto"
-                        value={metrics.tracksTimeUsers}
-                        icon={UsersRound}
-                    />
-                    <Metric
-                        label="Sem grupo definido"
-                        value={metrics.unassignedUsers}
-                        icon={UsersRound}
+                        label="Total de grupos"
+                        value={metrics.totalGroups}
+                        icon={CalendarClock}
                     />
                 </section>
-                <section className="grid gap-6 xl:grid-cols-[1fr_1.2fr]">
-                    <form
-                        onSubmit={saveHoliday}
-                        className="card border border-base-300 bg-base-100 shadow-sm"
-                    >
-                        <div className="card-body">
-                            <h2 className="card-title">Cadastrar feriado</h2>
-                            <div className="grid gap-3 sm:grid-cols-2">
-                                <label className="fieldset sm:col-span-2">
-                                    <span className="fieldset-legend">
-                                        Nome
-                                    </span>
-                                    <input
-                                        name="name"
-                                        className="input w-full"
-                                        required
-                                    />
-                                </label>
-                                <label className="fieldset">
-                                    <span className="fieldset-legend">
-                                        Data
-                                    </span>
-                                    <input
-                                        name="holiday_date"
-                                        type="date"
-                                        className="input w-full"
-                                        required
-                                    />
-                                </label>
-                                <label className="fieldset">
-                                    <span className="fieldset-legend">
-                                        Abrangência
-                                    </span>
-                                    <select
-                                        name="scope"
-                                        className="select w-full"
-                                        required
-                                    >
-                                        <option value="company">Empresa</option>
-                                        <option value="national">
-                                            Nacional
-                                        </option>
-                                        <option value="state">Estadual</option>
-                                        <option value="municipal">
-                                            Municipal
-                                        </option>
-                                    </select>
-                                </label>
-                                <label className="fieldset sm:col-span-2">
-                                    <span className="fieldset-legend">
-                                        Unidade
-                                    </span>
-                                    <select
-                                        name="company_id"
-                                        className="select w-full"
-                                    >
-                                        <option value="">
-                                            Todas as unidades aplicáveis
-                                        </option>
-                                        {companies.map((company) => (
-                                            <option
-                                                key={company.id}
-                                                value={company.id}
-                                            >
-                                                {company.unit_name} —{' '}
-                                                {company.city}/{company.state}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </label>
-                                <label className="fieldset">
-                                    <span className="fieldset-legend">
-                                        UF (opcional)
-                                    </span>
-                                    <input
-                                        name="state"
-                                        maxLength={2}
-                                        className="input w-full uppercase"
-                                    />
-                                </label>
-                                <label className="fieldset">
-                                    <span className="fieldset-legend">
-                                        Cidade (opcional)
-                                    </span>
-                                    <input
-                                        name="city"
-                                        className="input w-full"
-                                    />
-                                </label>
-                                <label className="fieldset">
-                                    <span className="fieldset-legend">
-                                        Início parcial
-                                    </span>
-                                    <input
-                                        name="starts_at"
-                                        type="time"
-                                        className="input w-full"
-                                    />
-                                </label>
-                                <label className="fieldset">
-                                    <span className="fieldset-legend">
-                                        Fim parcial
-                                    </span>
-                                    <input
-                                        name="ends_at"
-                                        type="time"
-                                        className="input w-full"
-                                    />
-                                </label>
-                            </div>
-                            <div className="card-actions justify-end">
-                                <button
-                                    className="btn btn-primary"
-                                    disabled={busy}
-                                >
-                                    Cadastrar feriado
-                                </button>
-                            </div>
-                        </div>
-                    </form>
-                    <div className="card border border-base-300 bg-base-100 shadow-sm">
-                        <div className="card-body">
-                            <h2 className="card-title">Feriados cadastrados</h2>
-                            <div className="overflow-x-auto">
-                                <table className="table table-zebra">
-                                    <thead>
-                                        <tr>
-                                            <th>Data</th>
-                                            <th>Nome</th>
-                                            <th>Aplicação</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        {holidays.map((holiday) => (
-                                            <tr key={holiday.id}>
-                                                <td>
-                                                    {new Date(
-                                                        `${holiday.holiday_date}T12:00:00`,
-                                                    ).toLocaleDateString(
-                                                        'pt-BR',
-                                                    )}
-                                                </td>
-                                                <td>{holiday.name}</td>
-                                                <td>
-                                                    {holiday.company
-                                                        ?.unit_name ??
-                                                        holiday.scope}
-                                                </td>
-                                            </tr>
-                                        ))}
-                                    </tbody>
-                                </table>
-                            </div>
-                        </div>
-                    </div>
-                </section>
-                {message && <div className="alert alert-info">{message}</div>}
-                <section className="grid gap-6 xl:grid-cols-[1.5fr_1fr]">
+                <section>
                     <div className="card border border-base-300 bg-base-100 shadow-sm">
                         <div className="card-body">
                             <h2 className="card-title">Grupos de jornada</h2>
@@ -470,9 +303,13 @@ export default function TimeCardSettings({
                                         <tr>
                                             <th>Grupo</th>
                                             <th>Escala</th>
+                                            <th>Horários</th>
                                             <th>Carga</th>
+                                            <th>Status</th>
                                             <th>Usuários</th>
-                                            <th />
+                                            <th className="text-right">
+                                                Ações
+                                            </th>
                                         </tr>
                                     </thead>
                                     <tbody>
@@ -492,6 +329,44 @@ export default function TimeCardSettings({
                                                     </span>
                                                 </td>
                                                 <td>
+                                                    <div className="flex min-w-72 flex-wrap gap-1">
+                                                        {group.days
+                                                            .filter(
+                                                                (day) =>
+                                                                    day.is_workday,
+                                                            )
+                                                            .map((day) => (
+                                                                <span
+                                                                    key={
+                                                                        day.day_index
+                                                                    }
+                                                                    className="badge h-auto py-1 badge-ghost"
+                                                                >
+                                                                    {day.label.slice(
+                                                                        0,
+                                                                        3,
+                                                                    )}{' '}
+                                                                    ·{' '}
+                                                                    {normalizeTime(
+                                                                        day.start_time,
+                                                                    )}
+                                                                    –
+                                                                    {normalizeTime(
+                                                                        day.break_start_time,
+                                                                    )}{' '}
+                                                                    /{' '}
+                                                                    {normalizeTime(
+                                                                        day.break_end_time,
+                                                                    )}
+                                                                    –
+                                                                    {normalizeTime(
+                                                                        day.end_time,
+                                                                    )}
+                                                                </span>
+                                                            ))}
+                                                    </div>
+                                                </td>
+                                                <td>
                                                     {Math.floor(
                                                         group.weekly_minutes /
                                                             60,
@@ -499,17 +374,50 @@ export default function TimeCardSettings({
                                                     h semanais
                                                 </td>
                                                 <td>
+                                                    <span
+                                                        className={`badge ${group.active ? 'badge-success' : 'badge-ghost'}`}
+                                                    >
+                                                        {group.active
+                                                            ? 'Ativo'
+                                                            : 'Inativo'}
+                                                    </span>
+                                                </td>
+                                                <td>
                                                     {group.assignments_count}
                                                 </td>
                                                 <td>
-                                                    <button
-                                                        className="btn btn-square btn-ghost btn-sm"
-                                                        onClick={() =>
-                                                            open(group)
-                                                        }
-                                                    >
-                                                        <Pencil className="size-4" />
-                                                    </button>
+                                                    <div className="flex justify-end gap-1">
+                                                        <button
+                                                            className="btn btn-square btn-ghost btn-sm"
+                                                            title="Editar jornada"
+                                                            aria-label={`Editar ${group.name}`}
+                                                            onClick={() =>
+                                                                open(group)
+                                                            }
+                                                        >
+                                                            <Pencil className="size-4" />
+                                                        </button>
+                                                        <button
+                                                            className="btn btn-square btn-ghost btn-sm text-error"
+                                                            title={
+                                                                group.assignments_count >
+                                                                0
+                                                                    ? 'Há usuários vinculados a este grupo'
+                                                                    : 'Excluir jornada'
+                                                            }
+                                                            aria-label={`Excluir ${group.name}`}
+                                                            disabled={
+                                                                busy ||
+                                                                group.assignments_count >
+                                                                    0
+                                                            }
+                                                            onClick={() =>
+                                                                remove(group)
+                                                            }
+                                                        >
+                                                            <Trash2 className="size-4" />
+                                                        </button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))}
@@ -518,72 +426,71 @@ export default function TimeCardSettings({
                             </div>
                         </div>
                     </div>
-                    <form
-                        onSubmit={assign}
-                        className="card h-fit border border-base-300 bg-base-100 shadow-sm"
-                    >
-                        <div className="card-body">
-                            <h2 className="card-title">Vincular usuário</h2>
-                            <label className="fieldset">
-                                <span className="fieldset-legend">Usuário</span>
-                                <select
-                                    name="user_id"
-                                    className="select w-full"
-                                    required
-                                >
-                                    <option value="">Selecione</option>
-                                    {users.map((user) => (
-                                        <option key={user.id} value={user.id}>
-                                            {user.name}
-                                            {user.group
-                                                ? ` — ${user.group.name} (${user.group.schedule_type})`
-                                                : ''}
+                </section>
+            </main>
+            <dialog ref={holidayDialog} className="modal">
+                <div className="modal-box max-w-2xl">
+                    <form onSubmit={saveHoliday} className="space-y-5">
+                        <div>
+                            <h2 className="text-xl font-bold">
+                                Cadastrar feriado
+                            </h2>
+                            <p className="mt-1 text-sm text-base-content/60">
+                                Informe a data e a abrangência do feriado.
+                            </p>
+                        </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                            <Field label="Nome">
+                                <input name="name" className="input w-full" required />
+                            </Field>
+                            <Field label="Data">
+                                <input name="holiday_date" type="date" className="input w-full" required />
+                            </Field>
+                            <Field label="Abrangência">
+                                <select name="scope" className="select w-full" required>
+                                    <option value="company">Empresa</option>
+                                    <option value="national">Nacional</option>
+                                    <option value="state">Estadual</option>
+                                    <option value="municipal">Municipal</option>
+                                </select>
+                            </Field>
+                            <Field label="Unidade">
+                                <select name="company_id" className="select w-full">
+                                    <option value="">Todas as unidades aplicáveis</option>
+                                    {companies.map((company) => (
+                                        <option key={company.id} value={company.id}>
+                                            {company.unit_name} — {company.city}/{company.state}
                                         </option>
                                     ))}
                                 </select>
-                            </label>
-                            <label className="fieldset">
-                                <span className="fieldset-legend">Grupo</span>
-                                <select
-                                    name="work_schedule_group_id"
-                                    className="select w-full"
-                                    required
-                                >
-                                    <option value="">Selecione</option>
-                                    {groups
-                                        .filter((g) => g.active)
-                                        .map((group) => (
-                                            <option
-                                                key={group.id}
-                                                value={group.id}
-                                            >
-                                                {group.name} (
-                                                {group.schedule_type})
-                                            </option>
-                                        ))}
-                                </select>
-                            </label>
-                            <label className="fieldset">
-                                <span className="fieldset-legend">
-                                    Válido a partir de
-                                </span>
-                                <input
-                                    name="valid_from"
-                                    type="date"
-                                    className="input w-full"
-                                    required
-                                    defaultValue={new Date()
-                                        .toISOString()
-                                        .slice(0, 10)}
-                                />
-                            </label>
-                            <button disabled={busy} className="btn btn-primary">
-                                Aplicar grupo
+                            </Field>
+                            <Field label="UF (opcional)">
+                                <input name="state" maxLength={2} className="input w-full uppercase" />
+                            </Field>
+                            <Field label="Cidade (opcional)">
+                                <input name="city" className="input w-full" />
+                            </Field>
+                            <Field label="Início parcial">
+                                <input name="starts_at" type="time" className="input w-full" />
+                            </Field>
+                            <Field label="Fim parcial">
+                                <input name="ends_at" type="time" className="input w-full" />
+                            </Field>
+                        </div>
+                        <div className="modal-action">
+                            <button type="button" className="btn btn-ghost" onClick={() => holidayDialog.current?.close()}>
+                                Cancelar
+                            </button>
+                            <button className="btn btn-primary" disabled={busy}>
+                                {busy ? 'Salvando…' : 'Salvar feriado'}
                             </button>
                         </div>
                     </form>
-                </section>
-            </main>
+                </div>
+                <form method="dialog" className="modal-backdrop">
+                    <button>Fechar</button>
+                </form>
+            </dialog>
             <dialog ref={dialog} className="modal">
                 <div className="modal-box max-w-5xl">
                     <form onSubmit={save} className="space-y-5">
