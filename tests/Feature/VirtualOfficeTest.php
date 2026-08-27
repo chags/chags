@@ -682,6 +682,46 @@ test('a manager approval credits a complete overtime pair to the hour bank', fun
     ]);
 });
 
+test('approving two direct overtime punches credits the hour bank after the complete pair', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('gestor');
+    $employee = User::factory()->create(['tracks_time' => true]);
+    $employee->assignRole('colaborador');
+    createEmployee($employee)->update(['manager_id' => $manager->id]);
+
+    foreach ([
+        ['type' => 'clock_out', 'recorded_at' => '2026-08-19 20:00:00', 'status' => 'approved'],
+        ['type' => 'overtime_start', 'recorded_at' => '2026-08-19 20:30:00', 'status' => 'pending'],
+        ['type' => 'overtime_end', 'recorded_at' => '2026-08-19 22:00:00', 'status' => 'pending'],
+    ] as $data) {
+        TimeEntry::query()->create([
+            'user_id' => $employee->id,
+            'source' => 'manual',
+            'created_by' => $employee->id,
+            ...$data,
+        ]);
+    }
+
+    $start = $employee->timeEntries()->where('type', 'overtime_start')->sole();
+    $end = $employee->timeEntries()->where('type', 'overtime_end')->sole();
+
+    $this->actingAs($manager)
+        ->patchJson("/personnel/time-entries/{$start->id}", ['decision' => 'approve'])
+        ->assertOk();
+    expect($employee->hourBankTransactions()->count())->toBe(0);
+
+    $this->actingAs($manager)
+        ->patchJson("/personnel/time-entries/{$end->id}", ['decision' => 'approve'])
+        ->assertOk();
+
+    $this->assertDatabaseHas('hour_bank_transactions', [
+        'user_id' => $employee->id,
+        'work_date' => '2026-08-19 00:00:00',
+        'minutes' => 90,
+        'type' => 'overtime',
+    ]);
+});
+
 test('overtime approval rejects a period longer than two hours', function () {
     $manager = User::factory()->create();
     $manager->assignRole('gestor');
