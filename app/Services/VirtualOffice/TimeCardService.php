@@ -137,7 +137,7 @@ class TimeCardService
                 'workedMinutes' => $dayWorked,
                 'balanceMinutes' => $dayBalance,
                 'accumulatedBalanceMinutes' => $runningBalance,
-                'occurrence' => $isFullHoliday
+                'occurrence' => $holiday
                     ? 'holiday'
                     : ($absence?->status === 'approved'
                     ? ($absence->type === 'absence_declaration' ? 'absence_declaration' : 'medical_leave')
@@ -147,7 +147,12 @@ class TimeCardService
                     ? 'hour_bank_leave'
                     : $this->occurrence($schedule, $dayEntries, $date)))),
                 'dayType' => $isFullHoliday ? 'holiday' : ($exception?->type ?? ($schedule ? 'workday' : 'day_off')),
-                'holiday' => $holiday ? ['name' => $holiday->name, 'partial' => ! $isFullHoliday] : null,
+                'holiday' => $holiday ? [
+                    'name' => $holiday->name,
+                    'partial' => ! $isFullHoliday,
+                    'startsAt' => $holiday->starts_at ? substr($holiday->starts_at, 0, 5) : null,
+                    'endsAt' => $holiday->ends_at ? substr($holiday->ends_at, 0, 5) : null,
+                ] : null,
                 'absence' => $absence ? ['status' => $absence->status, 'type' => $absence->type] : null,
                 'adjustmentStatus' => $dayAdjustments->contains('status', 'pending')
                     ? 'pending'

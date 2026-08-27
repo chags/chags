@@ -48,3 +48,33 @@ test('a collaborator cannot manage time card settings', function () {
     $user->assignRole('colaborador');
     $this->actingAs($user)->get('/personnel/time-card-settings')->assertForbidden();
 });
+
+test('a holiday date means the whole day unless a partial period is informed', function () {
+    $manager = User::factory()->create();
+    $manager->assignRole('dp-analista');
+
+    $this->actingAs($manager)->postJson('/personnel/holidays', [
+        'name' => 'Independência do Brasil',
+        'holiday_date' => '2026-09-07',
+        'scope' => 'national',
+    ])->assertCreated();
+
+    $this->actingAs($manager)->postJson('/personnel/holidays', [
+        'name' => 'Quarta-feira de Cinzas',
+        'holiday_date' => '2027-02-10',
+        'scope' => 'national',
+        'starts_at' => '00:00',
+        'ends_at' => '12:00',
+    ])->assertCreated();
+
+    $this->assertDatabaseHas('holidays', [
+        'name' => 'Independência do Brasil',
+        'starts_at' => null,
+        'ends_at' => null,
+    ]);
+    $this->assertDatabaseHas('holidays', [
+        'name' => 'Quarta-feira de Cinzas',
+        'starts_at' => '00:00',
+        'ends_at' => '12:00',
+    ]);
+});

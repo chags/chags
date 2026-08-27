@@ -44,7 +44,12 @@ type Day = {
         | 'custom_schedule'
         | 'hour_bank_leave'
         | 'holiday';
-    holiday: { name: string; partial: boolean } | null;
+    holiday: {
+        name: string;
+        partial: boolean;
+        startsAt: string | null;
+        endsAt: string | null;
+    } | null;
     absence: { status: string; type: string } | null;
     adjustmentStatus: 'pending' | 'approved' | 'cancelled' | null;
 };
@@ -434,8 +439,9 @@ export default function TimeCardIndex({
                                                     <div
                                                         className="tooltip tooltip-left"
                                                         data-tip={
-                                                            day.holiday?.name ??
-                                                            'Feriado'
+                                                            day.holiday
+                                                                ? `${day.holiday.name}${day.holiday.partial ? ` · ${day.holiday.startsAt}–${day.holiday.endsAt}` : ''}`
+                                                                : 'Feriado'
                                                         }
                                                     >
                                                         <span
@@ -447,7 +453,10 @@ export default function TimeCardIndex({
                                                                     : 'Feriado'
                                                             }
                                                         >
-                                                            Feriado
+                                                            {day.holiday
+                                                                ?.partial
+                                                                ? 'Feriado parcial'
+                                                                : 'Feriado'}
                                                         </span>
                                                     </div>
                                                 ) : day.occurrence ===

@@ -114,6 +114,7 @@ export default function TimeCardSettings({
     const [editing, setEditing] = useState<Group | null>(null);
     const [type, setType] = useState('5x2');
     const [days, setDays] = useState<Day[]>(defaultDays('5x2'));
+    const [partialHoliday, setPartialHoliday] = useState(false);
     const [busy, setBusy] = useState(false);
     const [message, setMessage] = useState('');
     const open = (group: Group | null = null) => {
@@ -236,6 +237,7 @@ export default function TimeCardSettings({
                 ends_at: values.ends_at || null,
             });
             form.reset();
+            setPartialHoliday(false);
             holidayDialog.current?.close();
             toast.success(data.message, { duration: 18_000 });
         } catch (error) {
@@ -270,7 +272,10 @@ export default function TimeCardSettings({
                     <div className="flex flex-wrap gap-2">
                         <button
                             className="btn btn-outline"
-                            onClick={() => holidayDialog.current?.showModal()}
+                            onClick={() => {
+                                setPartialHoliday(false);
+                                holidayDialog.current?.showModal();
+                            }}
                         >
                             <CalendarPlus className="size-4" />
                             Cadastrar feriado
@@ -428,7 +433,11 @@ export default function TimeCardSettings({
                     </div>
                 </section>
             </main>
-            <dialog ref={holidayDialog} className="modal">
+            <dialog
+                ref={holidayDialog}
+                className="modal"
+                onClose={() => setPartialHoliday(false)}
+            >
                 <div className="modal-box max-w-2xl">
                     <form onSubmit={saveHoliday} className="space-y-5">
                         <div>
@@ -470,12 +479,35 @@ export default function TimeCardSettings({
                             <Field label="Cidade (opcional)">
                                 <input name="city" className="input w-full" />
                             </Field>
-                            <Field label="Início parcial">
-                                <input name="starts_at" type="time" className="input w-full" />
-                            </Field>
-                            <Field label="Fim parcial">
-                                <input name="ends_at" type="time" className="input w-full" />
-                            </Field>
+                            <label className="label cursor-pointer justify-start gap-3 sm:col-span-2">
+                                <input
+                                    type="checkbox"
+                                    className="checkbox checkbox-primary"
+                                    checked={partialHoliday}
+                                    onChange={(event) =>
+                                        setPartialHoliday(event.target.checked)
+                                    }
+                                />
+                                <span>
+                                    <strong>Feriado parcial</strong>
+                                    <span className="block text-xs text-base-content/55">
+                                        Desmarcado, a data inteira será considerada feriado.
+                                    </span>
+                                </span>
+                            </label>
+                            {partialHoliday && (
+                                <>
+                                    <Field label="Feriado começa às">
+                                        <input name="starts_at" type="time" className="input w-full" required />
+                                    </Field>
+                                    <Field label="Feriado termina às">
+                                        <input name="ends_at" type="time" className="input w-full" required />
+                                    </Field>
+                                    <p className="text-xs text-base-content/55 sm:col-span-2">
+                                        Para Quarta-feira de Cinzas com expediente a partir das 12h, informe 00:00 até 12:00.
+                                    </p>
+                                </>
+                            )}
                         </div>
                         <div className="modal-action">
                             <button type="button" className="btn btn-ghost" onClick={() => holidayDialog.current?.close()}>
