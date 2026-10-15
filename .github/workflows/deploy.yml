@@ -19,7 +19,7 @@ jobs:
     environment: production
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Upload files via FTP
         uses: SamKirkland/FTP-Deploy-Action@v4.4.0
